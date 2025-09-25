@@ -1,0 +1,31 @@
+export const palette = {
+  midnight: '#0B1026',
+  plum: '#4F3BA9',
+  orchid: '#7D5FFF',
+  lavender: '#9A8CFF',
+  mint: '#3BE2B0',
+  coral: '#FF6B6B',
+  amber: '#FFB347',
+  white: '#FFFFFF',
+  smoke: '#F2F2F7',
+  slate: '#BAC4D6',
+  gunmetal: '#1C2339',
+};
+
+export const colors = {
+  background: palette.midnight,
+  surface: 'rgba(12, 18, 41, 0.75)',
+  card: 'rgba(20, 26, 55, 0.9)',
+  primary: palette.orchid,
+  primaryVariant: palette.plum,
+  accent: palette.mint,
+  danger: palette.coral,
+  warning: palette.amber,
+  textPrimary: palette.white,
+  textSecondary: palette.lavender,
+  muted: 'rgba(154, 140, 255, 0.6)',
+  border: 'rgba(125, 95, 255, 0.35)',
+  tabInactive: 'rgba(186, 196, 214, 0.6)',
+  progressTrack: 'rgba(94, 106, 146, 0.4)',
+  progressFill: palette.mint,
+};
