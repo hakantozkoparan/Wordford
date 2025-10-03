@@ -9,7 +9,6 @@ import { ScreenContainer } from '@/components/ScreenContainer';
 import { LevelCard } from '@/components/LevelCard';
 import { CreditPill } from '@/components/CreditPill';
 import { ProgressBar } from '@/components/ProgressBar';
-import { StatCard } from '@/components/StatCard';
 import { colors, spacing, typography } from '@/theme';
 import { LEVEL_CODES, LEVEL_LABELS, TOTAL_WORD_COUNT, WORDS_PER_LEVEL } from '@/constants/levels';
 import { useAuth } from '@/context/AuthContext';
@@ -51,27 +50,77 @@ export const HomeScreen: React.FC = () => {
   }, [loadLevelWords]);
 
   const masteredCount = Object.values(progressMap).filter((item) => item.status === 'mastered').length;
+  const favoriteCount = Object.values(progressMap).filter((item) => item.isFavorite).length;
   const totalProgress = TOTAL_WORD_COUNT === 0 ? 0 : masteredCount / TOTAL_WORD_COUNT;
+  
+  // Bugünün öğrenme hedefi (örnek: günde 10 kelime)
+  const dailyGoal = 10;
+  const todaysMastered = 7; // Bu gerçek veriden gelecek (şimdilik mock)
+  const streak = 5; // Günlük seri (şimdilik mock)
 
   return (
     <GradientBackground>
   <ScreenContainer style={styles.container} edges={['top']}>
   <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <LinearGradient
-            colors={[colors.primary, colors.accent]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.hero}
-          >
-            <View style={styles.heroTextGroup}>
-              <Text style={styles.greeting}>Hoş geldin, {profile?.firstName ?? 'Gezgin'} 👋</Text>
-              <Text style={styles.heroSubtitle}>Bugün hangi kelimeleri fethedeceksin?</Text>
-            </View>
-            <View style={styles.heroPills}>
-              <CreditPill label="Krediler" value={profile?.dailyCredits ?? 0} />
-              <CreditPill label="Yıldız" value={profile?.dailyHintTokens ?? 0} />
-            </View>
-          </LinearGradient>
+          {/* Modern Hero Card */}
+          <View style={styles.hero}>
+            <LinearGradient
+              colors={['rgba(123, 97, 255, 0.15)', 'rgba(80, 227, 194, 0.15)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.heroGradient}
+            >
+              <View style={styles.heroContent}>
+                <View style={styles.heroHeader}>
+                  <View style={styles.heroTextGroup}>
+                    <Text style={styles.greeting}>Hoş geldin, {profile?.firstName ?? 'Misafir'} 👋</Text>
+                    <Text style={styles.heroSubtitle}>Bugün hangi kelimeleri öğreneceksin?</Text>
+                  </View>
+                  <View style={styles.heroPills}>
+                    <CreditPill label="Krediler" value={profile?.dailyCredits ?? 0} />
+                    <CreditPill label="Yıldız" value={profile?.dailyHintTokens ?? 0} />
+                  </View>
+                </View>
+
+                {/* Mini Stats Row */}
+                <View style={styles.miniStatsRow}>
+                  <View style={styles.miniStatItem}>
+                    <View style={styles.miniStatIconBg}>
+                      <Ionicons name="flame" size={18} color="#FFB199" />
+                    </View>
+                    <View style={styles.miniStatText}>
+                      <Text style={styles.miniStatValue}>{streak} gün</Text>
+                      <Text style={styles.miniStatLabel}>Seri</Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.miniStatDivider} />
+                  
+                  <View style={styles.miniStatItem}>
+                    <View style={styles.miniStatIconBg}>
+                      <Ionicons name="checkmark-circle" size={18} color="#5AE3B4" />
+                    </View>
+                    <View style={styles.miniStatText}>
+                      <Text style={styles.miniStatValue}>{todaysMastered}/{dailyGoal}</Text>
+                      <Text style={styles.miniStatLabel}>Bugün</Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.miniStatDivider} />
+                  
+                  <View style={styles.miniStatItem}>
+                    <View style={styles.miniStatIconBg}>
+                      <Ionicons name="heart" size={18} color="#FF7A88" />
+                    </View>
+                    <View style={styles.miniStatText}>
+                      <Text style={styles.miniStatValue}>{favoriteCount}</Text>
+                      <Text style={styles.miniStatLabel}>Favoriler</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
 
           <View style={styles.progressCard}>
             <Text style={styles.sectionTitle}>Toplam İlerleme</Text>
@@ -80,15 +129,6 @@ export const HomeScreen: React.FC = () => {
               <Text style={styles.progressHighlight}>{masteredCount}</Text>
               <Text style={styles.progressCaption}> / {TOTAL_WORD_COUNT} kelimeyi tamamladın</Text>
             </View>
-          </View>
-
-          <View style={styles.statsRow}>
-            <StatCard label="Bildiklerim" value={`${masteredCount}`} caption="Toplam doğru bildiğin kelimeler" />
-            <StatCard
-              label="Favoriler"
-              value={`${Object.values(progressMap).filter((item) => item.isFavorite).length}`}
-              caption="Yıldızladığın kelimeler"
-            />
           </View>
 
           <View style={styles.levelsSection}>
@@ -133,13 +173,22 @@ const styles = StyleSheet.create({
   },
   hero: {
     borderRadius: spacing.xl,
-    padding: spacing.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    marginBottom: spacing.lg,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(26, 32, 62, 0.6)',
+  },
+  heroGradient: {
+    padding: spacing.lg,
+  },
+  heroContent: {
+    gap: spacing.sm,
+  },
+  heroHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.lg,
   },
   heroTextGroup: {
     flex: 1,
@@ -157,13 +206,52 @@ const styles = StyleSheet.create({
   heroPills: {
     gap: spacing.sm,
   },
+  miniStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+  },
+  miniStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  miniStatIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  miniStatText: {
+    gap: 2,
+  },
+  miniStatValue: {
+    ...typography.subtitle,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  miniStatLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 11,
+  },
+  miniStatDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
   progressCard: {
     backgroundColor: colors.card,
     padding: spacing.lg,
     borderRadius: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    marginTop: spacing.md,
   },
   sectionTitle: {
     ...typography.subtitle,
@@ -182,11 +270,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: spacing.sm,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.md,
   },
   levelsSection: {
     marginTop: spacing.sm,
