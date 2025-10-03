@@ -17,10 +17,6 @@ import { AppStackParamList } from '@/navigation/types';
 const schema = yup.object({
   firstName: yup.string().required('İsim zorunludur'),
   lastName: yup.string().required('Soyisim zorunludur'),
-  birthDate: yup
-    .string()
-    .matches(/\d{4}-\d{2}-\d{2}/, 'Doğum tarihi YYYY-AA-GG formatında olmalı')
-    .required('Doğum tarihi zorunludur'),
   email: yup.string().email('Geçerli bir e-posta girin').required('E-posta zorunludur'),
   password: yup.string().min(6, 'Şifre en az 6 karakter olmalı').required('Şifre zorunludur'),
   confirmPassword: yup
@@ -32,7 +28,6 @@ const schema = yup.object({
 interface FormValues {
   firstName: string;
   lastName: string;
-  birthDate: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -51,7 +46,6 @@ export const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     defaultValues: {
       firstName: '',
       lastName: '',
-      birthDate: '',
       email: '',
       password: '',
       confirmPassword: '',
@@ -77,7 +71,6 @@ export const RegisterScreen: React.FC<Props> = ({ navigation }) => {
       await register({
         firstName: pendingValues.firstName,
         lastName: pendingValues.lastName,
-        birthDate: pendingValues.birthDate,
         email: pendingValues.email,
         password: pendingValues.password,
         captchaValid: true,
@@ -96,7 +89,7 @@ export const RegisterScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <GradientBackground>
-      <ScreenContainer>
+      <ScreenContainer edges={['top']}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             <Text style={styles.title}>Ailemize Katıl</Text>
@@ -123,19 +116,6 @@ export const RegisterScreen: React.FC<Props> = ({ navigation }) => {
                     value={value}
                     onChangeText={onChange}
                     errorMessage={errors.lastName?.message}
-                  />
-                )}
-              />
-              <Controller
-                control={control}
-                name="birthDate"
-                render={({ field: { value, onChange } }) => (
-                  <TextField
-                    label="Doğum Tarihi"
-                    placeholder="YYYY-AA-GG"
-                    value={value}
-                    onChangeText={onChange}
-                    errorMessage={errors.birthDate?.message}
                   />
                 )}
               />
@@ -208,7 +188,7 @@ export const RegisterScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   scrollContent: {
-    paddingBottom: spacing.xl,
+    flexGrow: 1,
   },
   title: {
     ...typography.headline,

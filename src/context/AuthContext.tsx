@@ -15,7 +15,6 @@ interface RegisterForm {
   password: string;
   firstName: string;
   lastName: string;
-  birthDate: string;
   captchaValid: boolean;
 }
 
@@ -84,11 +83,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password: form.password,
         firstName: form.firstName,
         lastName: form.lastName,
-        birthDate: form.birthDate,
         captchaResultValid: form.captchaValid,
         device,
       });
     } catch (err) {
+      console.error('Kayıt hatası:', err);
       const message = parseAuthError(err);
       setError(message);
       Alert.alert('Kayıt başarısız', message);

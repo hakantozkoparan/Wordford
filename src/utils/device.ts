@@ -16,6 +16,16 @@ export const getDeviceMetadata = async (): Promise<DeviceMetadata> => {
     osVersion: Device.osVersion ?? null,
     totalMemory: Device.totalMemory,
     isEmulator: Device.isDevice === false,
+    // Ek cihaz bilgileri
+    deviceName: Device.deviceName ?? null,
+    deviceYearClass: Device.deviceYearClass ?? null,
+    manufacturer: Device.manufacturer ?? null,
+    platformVersion: Device.platformApiLevel?.toString() ?? null,
+    // Şimdilik varsayılan değerler - ileride expo-application ve expo-localization eklenebilir
+    appVersion: null,
+    buildNumber: null,
+    locale: null,
+    timezone: null,
   };
 };
 

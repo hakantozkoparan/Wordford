@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -10,7 +10,7 @@ import { ScreenContainer } from '@/components/ScreenContainer';
 import { TextField } from '@/components/TextField';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { LevelCode, WordEntry } from '@/types/models';
-import { spacing, typography, colors } from '@/theme';
+import { spacing, typography, colors, radius, palette } from '@/theme';
 import { LEVEL_CODES } from '@/constants/levels';
 import { seedWordIfMissing } from '@/services/wordService';
 import { useWords } from '@/context/WordContext';
@@ -25,7 +25,6 @@ interface FormValues {
   level: LevelCode;
   term: string;
   meanings: string;
-  exampleSentence?: string;
 }
 
 export const AdminWordScreen: React.FC = () => {
@@ -38,7 +37,7 @@ export const AdminWordScreen: React.FC = () => {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: yupResolver(schema),
-    defaultValues: { level: 'A1', term: '', meanings: '', exampleSentence: '' },
+    defaultValues: { level: 'A1', term: '', meanings: '' },
   });
 
   const onSubmit = handleSubmit(async (values) => {
@@ -46,7 +45,7 @@ export const AdminWordScreen: React.FC = () => {
     try {
       const normalizedMeanings = values.meanings
         .split(',')
-        .map((meaning) => meaning.trim())
+        .map((meaning: string) => meaning.trim())
         .filter(Boolean);
 
       const newWord: WordEntry = {
@@ -54,12 +53,11 @@ export const AdminWordScreen: React.FC = () => {
         level: values.level,
         term: values.term.trim(),
         meanings: normalizedMeanings,
-        exampleSentence: values.exampleSentence?.trim(),
         synonyms: [],
       };
 
       const levelWords = wordsByLevel[values.level] ?? [];
-      const exists = levelWords.some((word) => word.term.toLocaleLowerCase('tr-TR') === newWord.term.toLocaleLowerCase('tr-TR'));
+      const exists = levelWords.some((word: WordEntry) => word.term.toLocaleLowerCase('tr-TR') === newWord.term.toLocaleLowerCase('tr-TR'));
       if (exists) {
         Alert.alert('Uyarı', 'Bu kelime zaten mevcut.');
         return;
@@ -68,7 +66,7 @@ export const AdminWordScreen: React.FC = () => {
       await seedWordIfMissing(newWord);
       await loadLevelWords(values.level);
       Alert.alert('Başarılı', 'Kelime başarıyla eklendi.');
-      reset({ level: values.level, term: '', meanings: '', exampleSentence: '' });
+      reset({ level: values.level, term: '', meanings: '' });
     } catch (error) {
       Alert.alert('Hata', (error as Error).message ?? 'Kelime eklenemedi.');
     } finally {
@@ -84,24 +82,32 @@ export const AdminWordScreen: React.FC = () => {
           <Text style={styles.subtitle}>Seviyelere yeni kelimeler ekleyin.</Text>
         </View>
         <View style={styles.form}>
+          <Text style={styles.sectionLabel}>Seviye Seçin</Text>
           <Controller
             control={control}
             name="level"
             render={({ field: { value, onChange } }) => (
-              <FlatList
-                data={LEVEL_CODES}
-                horizontal
-                contentContainerStyle={styles.levelList}
-                keyExtractor={(item) => item}
-                renderItem={({ item }) => (
-                  <PrimaryButton
-                    label={item}
-                    variant={item === value ? 'primary' : 'secondary'}
+              <View style={styles.levelGrid}>
+                {LEVEL_CODES.map((item) => (
+                  <TouchableOpacity
+                    key={item}
+                    style={[
+                      styles.levelBox,
+                      item === value && styles.levelBoxActive,
+                    ]}
                     onPress={() => onChange(item)}
-                    style={styles.levelButton}
-                  />
-                )}
-              />
+                  >
+                    <Text
+                      style={[
+                        styles.levelBoxText,
+                        item === value && styles.levelBoxTextActive,
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             )}
           />
           <Controller
@@ -129,17 +135,6 @@ export const AdminWordScreen: React.FC = () => {
               />
             )}
           />
-          <Controller
-            control={control}
-            name="exampleSentence"
-            render={({ field: { value, onChange } }) => (
-              <TextField
-                label="Örnek Cümle"
-                value={value}
-                onChangeText={onChange}
-              />
-            )}
-          />
           <PrimaryButton label="Kelimeyi Kaydet" onPress={onSubmit} loading={submitting} />
         </View>
       </ScreenContainer>
@@ -162,11 +157,39 @@ const styles = StyleSheet.create({
   form: {
     gap: spacing.md,
   },
-  levelList: {
-    gap: spacing.sm,
-    paddingBottom: spacing.sm,
+  sectionLabel: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
   },
-  levelButton: {
-    minWidth: 60,
+  levelGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  levelBox: {
+    width: '48%',
+    aspectRatio: 2.5,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  levelBoxActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  levelBoxText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontWeight: '700',
+    fontSize: 18,
+  },
+  levelBoxTextActive: {
+    color: palette.white,
   },
 });

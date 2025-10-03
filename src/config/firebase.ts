@@ -4,12 +4,13 @@ import { getFirestore, serverTimestamp } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 
 const firebaseConfig = {
-  apiKey: 'REPLACE_WITH_FIREBASE_API_KEY',
-  authDomain: 'REPLACE_WITH_FIREBASE_AUTH_DOMAIN',
-  projectId: 'REPLACE_WITH_FIREBASE_PROJECT_ID',
-  storageBucket: 'REPLACE_WITH_FIREBASE_STORAGE_BUCKET',
-  messagingSenderId: 'REPLACE_WITH_FIREBASE_SENDER_ID',
-  appId: 'REPLACE_WITH_FIREBASE_APP_ID',
+  apiKey: "AIzaSyBsYDy1xbmA1kSw5JvKZGxYI3WmWpITCyw",
+  authDomain: "wordford-8e550.firebaseapp.com",
+  projectId: "wordford-8e550",
+  storageBucket: "wordford-8e550.firebasestorage.app",
+  messagingSenderId: "16850007310",
+  appId: "1:16850007310:web:667da99e7d987b9cec935f",
+  measurementId: "G-1MYQWSNE5Q"
 };
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);

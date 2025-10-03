@@ -14,6 +14,21 @@ export interface DeviceMetadata {
   osVersion: string | null;
   totalMemory?: number | null;
   isEmulator?: boolean | null;
+  // Push notification için
+  pushToken?: string | null;
+  pushEnabled?: boolean;
+  // Cihaz detayları
+  deviceName?: string | null;
+  deviceYearClass?: number | null;
+  manufacturer?: string | null;
+  // Platform bilgisi
+  platformVersion?: string | null;
+  // Uygulama bilgisi
+  appVersion?: string | null;
+  buildNumber?: string | null;
+  // Dil ve bölge
+  locale?: string | null;
+  timezone?: string | null;
 }
 
 export interface DeviceSecurityState {
@@ -28,7 +43,6 @@ export interface UserProfile {
   email: string;
   firstName: string;
   lastName: string;
-  birthDate: string;
   role: UserRole;
   deviceId: string;
   createdAt: Timestamp | null;
@@ -40,6 +54,22 @@ export interface UserProfile {
   subscriptionTier: SubscriptionTier;
   hasAdFree: boolean;
   lastLoginAt?: Timestamp | null;
+  // Push notification ayarları
+  pushToken?: string | null;
+  pushEnabled?: boolean;
+  notificationPreferences?: {
+    dailyReminder?: boolean;
+    weeklyProgress?: boolean;
+    achievements?: boolean;
+    marketing?: boolean;
+  };
+  // İstatistikler
+  totalWordsLearned?: number;
+  currentStreak?: number;
+  longestStreak?: number;
+  lastActivityDate?: Timestamp | null;
+  // Cihaz geçmişi (son kullanılan cihazlar)
+  deviceHistory?: DeviceMetadata[];
 }
 
 export interface WordEntry {
@@ -61,6 +91,7 @@ export interface WordProgress {
   status: WordAnswerStatus;
   attempts: number;
   isFavorite: boolean;
+  userExampleSentence?: string; // Kullanıcının kendi eklediği örnek cümle
   lastAnswerAt?: Timestamp | null;
   usedHint: boolean;
   createdAt?: Timestamp | null;

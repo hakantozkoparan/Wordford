@@ -23,7 +23,6 @@ export interface RegistrationPayload {
   password: string;
   firstName: string;
   lastName: string;
-  birthDate: string;
   captchaResultValid: boolean;
   device: DeviceMetadata;
 }
@@ -35,7 +34,7 @@ export interface LoginPayload {
 }
 
 export const registerUser = async (payload: RegistrationPayload) => {
-  const { email, password, firstName, lastName, birthDate, captchaResultValid, device } = payload;
+  const { email, password, firstName, lastName, captchaResultValid, device } = payload;
 
   if (!captchaResultValid) {
     throw new Error('Captcha doğrulanamadı.');
@@ -54,7 +53,6 @@ export const registerUser = async (payload: RegistrationPayload) => {
     email: credential.user.email ?? email,
     firstName,
     lastName,
-    birthDate,
     role: 'member',
     deviceId: device.deviceId,
     createdAt: null,
@@ -66,6 +64,22 @@ export const registerUser = async (payload: RegistrationPayload) => {
     subscriptionTier: 'none',
     hasAdFree: false,
     lastLoginAt: null,
+    // Push notification ayarları
+    pushToken: device.pushToken ?? null,
+    pushEnabled: false,
+    notificationPreferences: {
+      dailyReminder: true,
+      weeklyProgress: true,
+      achievements: true,
+      marketing: false,
+    },
+    // İstatistikler
+    totalWordsLearned: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    lastActivityDate: null,
+    // Cihaz geçmişi
+    deviceHistory: [device],
   };
 
   await setDoc(userDoc, {
