@@ -84,9 +84,20 @@ export const HomeScreen: React.FC = () => {
     }, 0);
   }, [progressMap]);
 
+  const todaysMasteredFromProfile = useMemo(() => {
+    if (!profile) {
+      return null;
+    }
+    const trackedDate = toDate(profile.todaysMasteredDate ?? null);
+    if (!trackedDate) {
+      return profile.todaysMastered ?? 0;
+    }
+    return isSameDay(trackedDate, new Date()) ? profile.todaysMastered ?? 0 : 0;
+  }, [profile]);
+
   const dailyGoal = DAILY_WORD_GOAL;
   const streak = profile?.currentStreak ?? 1; // Varsayılan olarak 1
-  const todaysMastered = profile?.todaysMastered ?? todaysMasteredFromProgress;
+  const todaysMastered = todaysMasteredFromProfile ?? todaysMasteredFromProgress;
   const formattedStreak = `${formatCompactNumber(Math.max(streak, 1))} gün`; // En az 1 gün göster
   const formattedDailyProgress = `${formatCompactNumber(todaysMastered)}/${formatCompactNumber(dailyGoal)}`;
   const formattedFavorites = formatCompactNumber(favoriteCount);

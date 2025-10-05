@@ -20,17 +20,27 @@ export const updateDailyStreak = async (userId: string): Promise<void> => {
     }
 
     const data = snapshot.data();
-    const lastActivityDate = toDate(data.lastActivityDate ?? null);
-    const currentStreak = data.currentStreak ?? 0;
-    const longestStreak = data.longestStreak ?? 0;
+  const lastActivityDate = toDate(data.lastActivityDate ?? null);
+  const todaysMasteredDate = toDate(data.todaysMasteredDate ?? null);
+  const currentStreak = Math.max(data.currentStreak ?? 1, 1);
+  const longestStreak = Math.max(data.longestStreak ?? currentStreak, currentStreak);
 
     const updates: Record<string, unknown> = {
       lastLoginAt: firebaseServerTimestamp(),
     };
 
+    if (todaysMasteredDate) {
+      const todaysTrackedStart = startOfDay(todaysMasteredDate);
+      const diffToday = differenceInCalendarDays(todayStart, todaysTrackedStart);
+      if (diffToday > 0) {
+        updates.todaysMastered = 0;
+        updates.todaysMasteredDate = null;
+      }
+    }
+
     if (!lastActivityDate) {
-      updates.currentStreak = 1;
-      updates.longestStreak = Math.max(1, longestStreak);
+  updates.currentStreak = Math.max(1, currentStreak, 1);
+  updates.longestStreak = Math.max(updates.currentStreak as number, longestStreak);
       updates.lastActivityDate = firebaseServerTimestamp();
       transaction.update(userRef, updates);
       return;
@@ -45,18 +55,26 @@ export const updateDailyStreak = async (userId: string): Promise<void> => {
     }
 
     if (diff === 1) {
-      const nextStreak = currentStreak + 1;
-      updates.currentStreak = nextStreak;
-      updates.longestStreak = Math.max(nextStreak, longestStreak);
+  const nextStreak = currentStreak + 1;
+  updates.currentStreak = nextStreak;
+  updates.longestStreak = Math.max(nextStreak, longestStreak);
       updates.lastActivityDate = firebaseServerTimestamp();
+      if (updates.todaysMastered === undefined) {
+        updates.todaysMastered = 0;
+        updates.todaysMasteredDate = null;
+      }
       transaction.update(userRef, updates);
       return;
     }
 
     if (diff > 1) {
-      updates.currentStreak = 1;
-      updates.lastActivityDate = firebaseServerTimestamp();
-      updates.longestStreak = Math.max(1, longestStreak);
+  updates.currentStreak = 1;
+  updates.lastActivityDate = firebaseServerTimestamp();
+  updates.longestStreak = Math.max(1, longestStreak, currentStreak);
+      if (updates.todaysMastered === undefined) {
+        updates.todaysMastered = 0;
+        updates.todaysMasteredDate = null;
+      }
       transaction.update(userRef, updates);
       return;
     }
