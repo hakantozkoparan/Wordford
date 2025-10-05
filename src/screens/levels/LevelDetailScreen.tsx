@@ -40,7 +40,7 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
   const [favorite, setFavorite] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showCelebration, setShowCelebration] = useState(false);
+  const [manualCelebration, setManualCelebration] = useState(false);
   const [exampleDraft, setExampleDraft] = useState('');
   const [savingExample, setSavingExample] = useState(false);
   const [exampleSaved, setExampleSaved] = useState(false);
@@ -48,7 +48,7 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const { control, handleSubmit, reset } = useForm<FormValues>({ defaultValues: { answer: '' } });
 
   useEffect(() => {
-    setShowCelebration(false);
+    setManualCelebration(false);
   }, [level]);
 
   useEffect(() => {
@@ -58,6 +58,11 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const words = useMemo(() => wordsByLevel[level as LevelCode] ?? [], [level, wordsByLevel]);
   const word = words[index];
   const progress = word ? progressMap[word.id] : undefined;
+  const hasPendingWords = useMemo(
+    () => words.some((entry) => progressMap[entry.id]?.status !== 'mastered'),
+    [words, progressMap],
+  );
+  const areAllWordsMastered = words.length > 0 && !hasPendingWords;
   const shouldShowMeaning = revealed || feedback === 'correct';
   const showExampleSection = feedback === 'correct' || exampleSaved;
   const showIncorrectFeedback = feedback === 'incorrect';
@@ -77,17 +82,25 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     }
   }, [words, index]);
 
-  const shouldShowCelebrationScreen = showCelebration;
+  const shouldShowCelebrationScreen =
+    manualCelebration || (areAllWordsMastered && feedback !== 'correct');
+
+  useEffect(() => {
+    if (hasPendingWords && manualCelebration) {
+      setManualCelebration(false);
+    }
+  }, [hasPendingWords, manualCelebration]);
 
   useEffect(() => {
     if (!word) return;
     const progressEntry = progressMap[word.id];
-    setFavorite(progressEntry?.isFavorite ?? false);
-    setRevealed(false);
-    setFeedback(null);
-    setError(null);
-    setExampleError(null);
-    setSavingExample(false);
+      setFavorite(progressEntry?.isFavorite ?? false);
+      setRevealed(false);
+      setFeedback(null);
+      setManualCelebration(false);
+      setError(null);
+      setExampleError(null);
+      setSavingExample(false);
     const initialExample = progressEntry?.userExampleSentence ?? '';
     setExampleDraft(initialExample);
     setExampleSaved(Boolean(initialExample));
@@ -111,9 +124,15 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     if (!word) return;
     const trimmed = answer.toLocaleLowerCase('tr-TR').trim();
     const isCorrect = normalizedMeanings(word).includes(trimmed);
-    await recordAnswer(word, isCorrect);
     setFeedback(isCorrect ? 'correct' : 'incorrect');
     setError(null);
+    try {
+      await recordAnswer(word, isCorrect);
+    } catch (err) {
+      setFeedback(null);
+      setError((err as Error).message ?? 'Cevap kaydedilemedi.');
+      return;
+    }
   });
 
   const handleReveal = async () => {
@@ -140,18 +159,20 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
     const currentWord = words[index];
     if (!currentWord) return;
-    const isLastWord = index >= words.length - 1;
-    if (isLastWord) {
-      setShowCelebration(true);
-      return;
-    }
+    const nextIndex = index + 1;
+    const reachedEnd = nextIndex >= words.length;
 
-    setIndex((prev) => prev + 1);
+    if (reachedEnd) {
+      setManualCelebration(true);
+    } else {
+      setManualCelebration(false);
+      setIndex(nextIndex);
+    }
     setFeedback(null);
     setRevealed(false);
     setError(null);
     reset({ answer: '' });
-    if (shouldShowInterstitial()) {
+    if (!reachedEnd && shouldShowInterstitial()) {
       showInterstitialAd().catch(() => undefined);
     }
   };

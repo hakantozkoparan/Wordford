@@ -2,6 +2,7 @@ import {
   Timestamp,
   collection,
   doc,
+  getDoc,
   runTransaction,
   serverTimestamp,
   setDoc,
@@ -24,41 +25,39 @@ export const getUserRef = (userId: string) => doc(db, FIREBASE_COLLECTIONS.users
 export const ensureDailyCredits = async (userId: string) => {
   const userRef = getUserRef(userId);
   const serverNow = await getServerNow();
+  const snapshot = await getDoc(userRef);
+  if (!snapshot.exists()) {
+    return;
+  }
 
+  const data = snapshot.data();
+  const lastRefresh = data.lastCreditRefresh as Timestamp | undefined;
+  const lastHintRefresh = data.lastHintRefresh as Timestamp | undefined;
+
+  let credits = data.dailyCredits ?? DAILY_FREE_CREDITS;
+  let hints = data.dailyHintTokens ?? DAILY_HINT_TOKENS;
+  let shouldUpdate = false;
   let shouldLogDailyRefresh = false;
 
-  await runTransaction(db, async (transaction) => {
-    const snapshot = await transaction.get(userRef);
-    if (!snapshot.exists()) return;
+  if (hasOneDayPassed(lastRefresh ?? null, serverNow)) {
+    credits = DAILY_FREE_CREDITS;
+    shouldUpdate = true;
+    shouldLogDailyRefresh = true;
+  }
 
-    const data = snapshot.data();
-    const lastRefresh = data.lastCreditRefresh as Timestamp | undefined;
-    const lastHintRefresh = data.lastHintRefresh as Timestamp | undefined;
+  if (hasOneDayPassed(lastHintRefresh ?? null, serverNow)) {
+    hints = DAILY_HINT_TOKENS;
+    shouldUpdate = true;
+  }
 
-    let credits = data.dailyCredits ?? DAILY_FREE_CREDITS;
-    let hints = data.dailyHintTokens ?? DAILY_HINT_TOKENS;
-    let shouldUpdate = false;
-
-    if (hasOneDayPassed(lastRefresh ?? null, serverNow)) {
-      credits = DAILY_FREE_CREDITS;
-      shouldUpdate = true;
-      shouldLogDailyRefresh = true;
-    }
-
-    if (hasOneDayPassed(lastHintRefresh ?? null, serverNow)) {
-      hints = DAILY_HINT_TOKENS;
-      shouldUpdate = true;
-    }
-
-    if (shouldUpdate) {
-      transaction.update(userRef, {
-        dailyCredits: credits,
-        dailyHintTokens: hints,
-        lastCreditRefresh: firebaseServerTimestamp(),
-        lastHintRefresh: firebaseServerTimestamp(),
-      });
-    }
-  });
+  if (shouldUpdate) {
+    await updateDoc(userRef, {
+      dailyCredits: credits,
+      dailyHintTokens: hints,
+      lastCreditRefresh: firebaseServerTimestamp(),
+      lastHintRefresh: firebaseServerTimestamp(),
+    });
+  }
 
   if (shouldLogDailyRefresh) {
     await logCreditTransaction(userId, DAILY_FREE_CREDITS, 'dailyRefresh');
