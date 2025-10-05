@@ -16,6 +16,7 @@ export const FIREBASE_COLLECTIONS = {
 
 export const STORAGE_KEYS = {
   deviceId: 'wordford_device_id',
+  guestProgress: 'wordford_guest_progress',
 };
 
 export const REVENUECAT_KEYS = {

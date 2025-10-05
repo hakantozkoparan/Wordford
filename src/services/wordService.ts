@@ -1,8 +1,10 @@
+import { FirebaseError } from 'firebase/app';
 import { collection, doc, getDoc, getDocs, onSnapshot, orderBy, query, setDoc } from 'firebase/firestore';
 
 import { FIREBASE_COLLECTIONS } from '@/config/appConfig';
-import { db, firebaseServerTimestamp } from '@/config/firebase';
+import { auth, db, firebaseServerTimestamp } from '@/config/firebase';
 import { LevelCode, WordEntry } from '@/types/models';
+import { SAMPLE_WORDS } from '@/data/sampleWords';
 
 export const levelCollectionRef = collection(db, FIREBASE_COLLECTIONS.wordLevels);
 
@@ -18,8 +20,15 @@ export const fetchWordsByLevel = async (level: LevelCode): Promise<WordEntry[]> 
       return { ...data, id: docSnap.id };
     });
   } catch (error) {
+    const isPermissionDenied =
+      error instanceof FirebaseError && error.code === 'permission-denied';
+
+    if (isPermissionDenied && !auth.currentUser) {
+      return SAMPLE_WORDS[level] ?? [];
+    }
+
     console.warn('Kelimeler alınırken hata oluştu:', error);
-    return [];
+    return SAMPLE_WORDS[level] ?? [];
   }
 };
 

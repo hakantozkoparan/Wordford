@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { LevelCode, WordEntry, WordProgress } from '@/types/models';
 import { fetchWordsByLevel } from '@/services/wordService';
@@ -6,10 +7,12 @@ import {
   markWordAsKnown,
   recordAnswerResult,
   recordHintUsage,
+  syncOfflineProgress,
   subscribeToProgress,
   toggleFavorite,
   updateUserExampleSentence,
 } from '@/services/progressService';
+import { STORAGE_KEYS } from '@/config/appConfig';
 import { useAuth } from './AuthContext';
 
 interface WordContextValue {
@@ -41,15 +44,94 @@ export const WordProvider: React.FC<{ children: React.ReactNode }> = ({ children
     C2: false,
   });
 
-  useEffect(() => {
-    if (!firebaseUser) {
-      setProgressMap({});
-      return;
-    }
+  const guestProgressStorageKey = STORAGE_KEYS.guestProgress;
 
-    const unsubscribe = subscribeToProgress(firebaseUser.uid, setProgressMap);
-    return unsubscribe;
-  }, [firebaseUser]);
+  const loadGuestProgress = useCallback(async (): Promise<Record<string, WordProgress>> => {
+    try {
+      const stored = await AsyncStorage.getItem(guestProgressStorageKey);
+      if (!stored) {
+        return {};
+      }
+      const parsed = JSON.parse(stored) as Record<string, WordProgress>;
+      return parsed ?? {};
+    } catch (error) {
+      console.warn('Misafir ilerlemesi okunamadı:', error);
+      return {};
+    }
+  }, [guestProgressStorageKey]);
+
+  const persistGuestProgress = useCallback(
+    async (payload: Record<string, WordProgress>) => {
+      try {
+        if (Object.keys(payload).length === 0) {
+          await AsyncStorage.removeItem(guestProgressStorageKey);
+        } else {
+          await AsyncStorage.setItem(guestProgressStorageKey, JSON.stringify(payload));
+        }
+      } catch (error) {
+        console.warn('Misafir ilerlemesi kaydedilemedi:', error);
+      }
+    },
+    [guestProgressStorageKey],
+  );
+
+  const clearGuestProgress = useCallback(async () => {
+    try {
+      await AsyncStorage.removeItem(guestProgressStorageKey);
+    } catch (error) {
+      console.warn('Misafir ilerlemesi temizlenemedi:', error);
+    }
+  }, [guestProgressStorageKey]);
+
+  const updateGuestProgress = useCallback(
+    (updater: (prev: Record<string, WordProgress>) => Record<string, WordProgress>) => {
+      setProgressMap((prev) => {
+        const updated = updater(prev);
+        persistGuestProgress(updated);
+        return updated;
+      });
+    },
+    [persistGuestProgress],
+  );
+
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    let isMounted = true;
+
+    const hydrate = async () => {
+      if (!firebaseUser) {
+        const guestProgress = await loadGuestProgress();
+        if (isMounted) {
+          setProgressMap(guestProgress);
+        }
+        return;
+      }
+
+      const guestProgress = await loadGuestProgress();
+      if (Object.keys(guestProgress).length > 0) {
+        if (isMounted) {
+          setProgressMap(guestProgress);
+        }
+        await syncOfflineProgress(firebaseUser.uid, guestProgress);
+        await clearGuestProgress();
+      }
+
+      if (!isMounted) {
+        return;
+      }
+
+      unsubscribe = subscribeToProgress(firebaseUser.uid, setProgressMap);
+    };
+
+    hydrate();
+
+    return () => {
+      isMounted = false;
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [firebaseUser, loadGuestProgress, clearGuestProgress, syncOfflineProgress]);
 
   const loadLevelWords = useCallback(async (level: LevelCode) => {
     setLevelLoading((prev) => ({ ...prev, [level]: true }));
@@ -72,8 +154,7 @@ export const WordProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const toggleFavoriteWord = useCallback(
     async (word: WordEntry, value: boolean) => {
       if (!firebaseUser) {
-        // Demo modu için local state
-        setProgressMap((prev) => ({
+        updateGuestProgress((prev) => ({
           ...prev,
           [word.id]: {
             ...(prev[word.id] ?? {
@@ -81,6 +162,7 @@ export const WordProvider: React.FC<{ children: React.ReactNode }> = ({ children
               level: word.level,
               status: 'unknown',
               attempts: 0,
+              isFavorite: false,
               usedHint: false,
               lastAnswerAt: null,
               createdAt: null,
@@ -93,14 +175,13 @@ export const WordProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       await toggleFavorite(firebaseUser.uid, word, value);
     },
-    [firebaseUser],
+    [firebaseUser, updateGuestProgress],
   );
 
   const markHintUsed = useCallback(
     async (word: WordEntry) => {
       if (!firebaseUser) {
-        // Demo modu için local state
-        setProgressMap((prev) => ({
+        updateGuestProgress((prev) => ({
           ...prev,
           [word.id]: {
             ...(prev[word.id] ?? {
@@ -109,6 +190,7 @@ export const WordProvider: React.FC<{ children: React.ReactNode }> = ({ children
               status: 'unknown',
               attempts: 0,
               isFavorite: false,
+              usedHint: false,
               lastAnswerAt: null,
               createdAt: null,
               updatedAt: null,
@@ -120,14 +202,13 @@ export const WordProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       await recordHintUsage(firebaseUser.uid, word);
     },
-    [firebaseUser],
+    [firebaseUser, updateGuestProgress],
   );
 
   const recordAnswer = useCallback(
     async (word: WordEntry, isCorrect: boolean) => {
       if (!firebaseUser) {
-        // Giriş yapılmadığında local state'te takip et (demo modu)
-        setProgressMap((prev) => ({
+        updateGuestProgress((prev) => ({
           ...prev,
           [word.id]: {
             wordId: word.id,
@@ -138,7 +219,7 @@ export const WordProvider: React.FC<{ children: React.ReactNode }> = ({ children
             usedHint: prev[word.id]?.usedHint ?? false,
             userExampleSentence: prev[word.id]?.userExampleSentence,
             lastAnswerAt: null,
-            createdAt: null,
+            createdAt: prev[word.id]?.createdAt ?? null,
             updatedAt: null,
           },
         }));
@@ -146,13 +227,13 @@ export const WordProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       await recordAnswerResult(firebaseUser.uid, word, isCorrect);
     },
-    [firebaseUser],
+    [firebaseUser, updateGuestProgress],
   );
 
   const saveExampleSentence = useCallback(
     async (word: WordEntry, example: string) => {
       if (!firebaseUser) {
-        setProgressMap((prev) => ({
+        updateGuestProgress((prev) => ({
           ...prev,
           [word.id]: {
             ...(prev[word.id] ?? {
@@ -173,7 +254,7 @@ export const WordProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       await updateUserExampleSentence(firebaseUser.uid, word, example);
     },
-    [firebaseUser],
+    [firebaseUser, updateGuestProgress],
   );
 
   const favorites = useMemo(

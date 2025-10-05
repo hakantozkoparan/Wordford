@@ -137,3 +137,51 @@ export const updateUserExampleSentence = async (
     );
   });
 };
+
+const resolveStatus = (existing?: WordProgress, incoming?: WordProgress['status']) => {
+  const priority = ['unknown', 'inProgress', 'mastered'] as const;
+  const existingIndex = existing ? priority.indexOf(existing.status) : 0;
+  const incomingIndex = incoming ? priority.indexOf(incoming) : 0;
+  return priority[Math.max(existingIndex, incomingIndex)] ?? 'unknown';
+};
+
+export const syncOfflineProgress = async (
+  userId: string,
+  offlineProgressMap: Record<string, WordProgress>,
+) => {
+  const entries = Object.values(offlineProgressMap);
+  for (const entry of entries) {
+    await runTransaction(db, async (transaction) => {
+      const ref = getProgressDocRef(userId, entry.wordId);
+      const snapshot = await transaction.get(ref);
+      const existing = snapshot.exists() ? (snapshot.data() as WordProgress) : undefined;
+
+      const attempts = Math.max(entry.attempts ?? 0, existing?.attempts ?? 0);
+      const status = resolveStatus(existing, entry.status);
+      const userExampleSentence =
+        entry.userExampleSentence !== undefined
+          ? entry.userExampleSentence
+          : existing?.userExampleSentence;
+
+      const payload: Record<string, unknown> = {
+        wordId: entry.wordId,
+        level: entry.level,
+        status,
+        attempts,
+        isFavorite: entry.isFavorite ?? existing?.isFavorite ?? false,
+        usedHint: entry.usedHint ?? existing?.usedHint ?? false,
+        updatedAt: serverTimestamp(),
+      };
+
+      if (!existing?.createdAt) {
+        payload.createdAt = serverTimestamp();
+      }
+
+      if (userExampleSentence !== undefined) {
+        payload.userExampleSentence = userExampleSentence;
+      }
+
+      transaction.set(ref, payload, { merge: true });
+    });
+  }
+};
