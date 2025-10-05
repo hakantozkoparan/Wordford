@@ -64,8 +64,8 @@ export const HomeScreen: React.FC = () => {
   const streak = 5; // Günlük seri (şimdilik mock)
 
   return (
-    <GradientBackground>
-  <ScreenContainer style={styles.container} edges={['top']}>
+    <GradientBackground paddingTop={spacing.md}>
+      <ScreenContainer style={styles.container} edges={['top']}>
   <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Modern Hero Card */}
           <View style={styles.hero}>
