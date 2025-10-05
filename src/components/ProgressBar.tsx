@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useDerivedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
 
 import { colors, radius, typography } from '@/theme';
 
@@ -10,8 +10,9 @@ interface Props {
 }
 
 export const ProgressBar: React.FC<Props> = ({ value, label, totalWords }) => {
-  const progress = useDerivedValue(() => Math.min(Math.max(value, 0), 1), [value]);
-  const formattedPercent = `${Math.round(progress.value * 100)}% tamamlandı.`;
+  const clampedValue = Math.min(Math.max(value, 0), 1);
+  const progress = useDerivedValue(() => clampedValue, [clampedValue]);
+  const formattedPercent = `${Math.round(clampedValue * 100)}% tamamlandı.`;
   const formattedTotalWords =
     typeof totalWords === 'number'
       ? totalWords.toLocaleString('tr-TR')

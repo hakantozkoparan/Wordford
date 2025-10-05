@@ -48,7 +48,7 @@ const TabNavigator = () => (
       tabBarIcon: ({ focused, color, size }) => {
         let iconName: keyof typeof Ionicons.glyphMap = 'ellipse-outline';
         if (route.name === 'Home') {
-          iconName = focused ? 'planet' : 'planet-outline';
+          iconName = focused ? 'home' : 'home-outline';
         } else if (route.name === 'Words') {
           iconName = focused ? 'book' : 'book-outline';
         } else if (route.name === 'Profile') {

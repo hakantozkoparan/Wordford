@@ -51,7 +51,12 @@ export const HomeScreen: React.FC = () => {
 
   const masteredCount = Object.values(progressMap).filter((item) => item.status === 'mastered').length;
   const favoriteCount = Object.values(progressMap).filter((item) => item.isFavorite).length;
-  const totalProgress = TOTAL_WORD_COUNT === 0 ? 0 : masteredCount / TOTAL_WORD_COUNT;
+  const totalWordsAcrossLevels = LEVEL_CODES.reduce((sum, level) => {
+    const levelWords = wordsByLevel[level]?.length ?? 0;
+    return sum + levelWords;
+  }, 0);
+  const totalWords = totalWordsAcrossLevels > 0 ? totalWordsAcrossLevels : TOTAL_WORD_COUNT;
+  const totalProgress = totalWords === 0 ? 0 : masteredCount / totalWords;
   
   // Bugünün öğrenme hedefi (örnek: günde 10 kelime)
   const dailyGoal = 10;
@@ -127,7 +132,7 @@ export const HomeScreen: React.FC = () => {
             <ProgressBar value={totalProgress} />
             <View style={styles.progressRow}>
               <Text style={styles.progressHighlight}>{masteredCount}</Text>
-              <Text style={styles.progressCaption}> / {TOTAL_WORD_COUNT} kelimeyi tamamladın</Text>
+              <Text style={styles.progressCaption}> / {totalWords} kelimeyi tamamladın</Text>
             </View>
           </View>
 

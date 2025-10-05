@@ -111,3 +111,29 @@ export const recordHintUsage = async (userId: string, word: WordEntry) => {
     );
   });
 };
+
+export const updateUserExampleSentence = async (
+  userId: string,
+  word: WordEntry,
+  exampleSentence: string,
+) => {
+  const ref = getProgressDocRef(userId, word.id);
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const existing = snapshot.exists() ? (snapshot.data() as WordProgress) : undefined;
+
+    const basePayload = existing
+      ? { wordId: word.id, level: word.level }
+      : { ...buildBaseProgress(word), createdAt: serverTimestamp() };
+
+    transaction.set(
+      ref,
+      {
+        ...basePayload,
+        userExampleSentence: exampleSentence.trim() || null,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+  });
+};

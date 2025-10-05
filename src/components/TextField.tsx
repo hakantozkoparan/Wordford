@@ -1,15 +1,16 @@
 import { forwardRef } from 'react';
-import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
+import { StyleSheet, StyleProp, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 
 import { colors, radius, spacing, typography } from '@/theme';
 
 interface Props extends TextInputProps {
   label?: string;
   errorMessage?: string;
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
-export const TextField = forwardRef<TextInput, Props>(({ label, errorMessage, style, ...rest }, ref) => (
-  <View style={styles.wrapper}>
+export const TextField = forwardRef<TextInput, Props>(({ label, errorMessage, style, containerStyle, ...rest }, ref) => (
+  <View style={[styles.wrapper, containerStyle]}>
     {label ? <Text style={styles.label}>{label}</Text> : null}
     <TextInput
       ref={ref}
