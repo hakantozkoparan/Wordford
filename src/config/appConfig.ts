@@ -1,5 +1,6 @@
 export const DAILY_FREE_CREDITS = 10;
 export const DAILY_HINT_TOKENS = 5;
+export const DAILY_WORD_GOAL = 10;
 export const WORDS_PER_AD_BREAK = 5;
 export const MAX_REGISTRATIONS_PER_DEVICE = 3;
 export const MAX_FAILED_LOGIN_ATTEMPTS = 5;
@@ -17,6 +18,7 @@ export const FIREBASE_COLLECTIONS = {
 export const STORAGE_KEYS = {
   deviceId: 'wordford_device_id',
   guestProgress: 'wordford_guest_progress',
+  guestStats: 'wordford_guest_stats',
 };
 
 export const REVENUECAT_KEYS = {

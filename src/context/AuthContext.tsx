@@ -7,6 +7,7 @@ import { DAILY_FREE_CREDITS, DAILY_HINT_TOKENS, FIREBASE_COLLECTIONS } from '@/c
 import { auth, db } from '@/config/firebase';
 import { deleteUserAccount, loginUser, logoutUser, parseAuthError, registerUser } from '@/services/authService';
 import { consumeCredit, consumeHintToken, ensureDailyCredits } from '@/services/creditService';
+import { updateDailyStreak } from '@/services/userStatsService';
 import { getDeviceMetadata } from '@/utils/device';
 import { UserProfile } from '@/types/models';
 
@@ -73,6 +74,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return unsubscribe;
   }, [firebaseUser]);
+
+  useEffect(() => {
+    if (!firebaseUser) {
+      return;
+    }
+
+    updateDailyStreak(firebaseUser.uid).catch((error) => {
+      console.warn('Günlük seri güncellenemedi:', error);
+    });
+  }, [firebaseUser?.uid]);
 
   const register = useCallback(async (form: RegisterForm) => {
     setLoading(true);

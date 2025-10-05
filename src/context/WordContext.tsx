@@ -12,6 +12,13 @@ import {
   toggleFavorite,
   updateUserExampleSentence,
 } from '@/services/progressService';
+import {
+  clearGuestStats,
+  incrementGuestMastered,
+  loadGuestStats,
+  recordGuestActivity,
+} from '@/services/guestStatsService';
+import { applyGuestSessionToUser } from '@/services/userStatsService';
 import { STORAGE_KEYS } from '@/config/appConfig';
 import { useAuth } from './AuthContext';
 
@@ -108,12 +115,21 @@ export const WordProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const guestProgress = await loadGuestProgress();
-      if (Object.keys(guestProgress).length > 0) {
-        if (isMounted) {
-          setProgressMap(guestProgress);
-        }
+      const guestStats = await loadGuestStats();
+      const hasGuestProgress = Object.keys(guestProgress).length > 0;
+      const hasGuestStats = Boolean(
+        guestStats.lastActivityDate || guestStats.currentStreak || guestStats.todaysMastered,
+      );
+
+      if (hasGuestProgress && isMounted) {
+        setProgressMap(guestProgress);
+      }
+
+      if (hasGuestProgress || hasGuestStats) {
         await syncOfflineProgress(firebaseUser.uid, guestProgress);
+        await applyGuestSessionToUser(firebaseUser.uid, guestProgress, guestStats);
         await clearGuestProgress();
+        await clearGuestStats();
       }
 
       if (!isMounted) {
@@ -208,21 +224,35 @@ export const WordProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const recordAnswer = useCallback(
     async (word: WordEntry, isCorrect: boolean) => {
       if (!firebaseUser) {
-        updateGuestProgress((prev) => ({
-          ...prev,
-          [word.id]: {
-            wordId: word.id,
-            level: word.level,
-            status: isCorrect ? 'mastered' : 'inProgress',
-            attempts: (prev[word.id]?.attempts ?? 0) + 1,
-            isFavorite: prev[word.id]?.isFavorite ?? false,
-            usedHint: prev[word.id]?.usedHint ?? false,
-            userExampleSentence: prev[word.id]?.userExampleSentence,
-            lastAnswerAt: null,
-            createdAt: prev[word.id]?.createdAt ?? null,
-            updatedAt: null,
-          },
-        }));
+        const now = new Date();
+        let becameMastered = false;
+        updateGuestProgress((prev) => {
+          const previous = prev[word.id];
+          const wasMastered = previous?.status === 'mastered';
+          becameMastered = isCorrect && !wasMastered;
+
+          return {
+            ...prev,
+            [word.id]: {
+              wordId: word.id,
+              level: word.level,
+              status: isCorrect ? 'mastered' : 'inProgress',
+              attempts: (previous?.attempts ?? 0) + 1,
+              isFavorite: previous?.isFavorite ?? false,
+              usedHint: previous?.usedHint ?? false,
+              userExampleSentence: previous?.userExampleSentence,
+              lastAnswerAt: isCorrect ? now : previous?.lastAnswerAt ?? null,
+              createdAt: previous?.createdAt ?? now,
+              updatedAt: now,
+            },
+          };
+        });
+
+        if (becameMastered) {
+          await incrementGuestMastered(now);
+        } else {
+          await recordGuestActivity(now);
+        }
         return;
       }
       await recordAnswerResult(firebaseUser.uid, word, isCorrect);

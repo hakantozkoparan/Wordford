@@ -9,11 +9,7 @@ import {
 } from 'firebase/firestore';
 
 import { db } from '@/config/firebase';
-import {
-  LOGIN_LOCK_DURATION_MINUTES,
-  MAX_FAILED_LOGIN_ATTEMPTS,
-  MAX_REGISTRATIONS_PER_DEVICE,
-} from '@/config/appConfig';
+import { LOGIN_LOCK_DURATION_MINUTES, MAX_FAILED_LOGIN_ATTEMPTS } from '@/config/appConfig';
 import { DeviceSecurityState } from '@/types/models';
 import { minutesUntil } from '@/utils/datetime';
 
@@ -38,20 +34,12 @@ export const ensureDeviceState = async (deviceId: string): Promise<DeviceSecurit
   return defaultState;
 };
 
-export const assertRegistrationQuota = async (deviceId: string) => {
-  const state = await ensureDeviceState(deviceId);
-  if (state.registrationCount >= MAX_REGISTRATIONS_PER_DEVICE) {
-    throw new Error('Bu cihaz için maksimum kayıt sayısına ulaşıldı.');
-  }
+export const assertRegistrationQuota = async (_deviceId: string) => {
+  // Kayıt kota kontrolü geçici olarak devre dışı.
 };
 
-export const incrementRegistrationCount = async (deviceId: string) => {
-  await ensureDeviceState(deviceId);
-  const ref = getDeviceDocRef(deviceId);
-  await updateDoc(ref, {
-    registrationCount: increment(1),
-    updatedAt: serverTimestamp(),
-  });
+export const incrementRegistrationCount = async (_deviceId: string) => {
+  // Kayıt kota sayaç güncellemesi geçici olarak devre dışı.
 };
 
 export const recordFailedLogin = async (deviceId: string) => {

@@ -1,12 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { isSameDay } from 'date-fns';
 
 import { GradientBackground } from '@/components/GradientBackground';
 import { ScreenContainer } from '@/components/ScreenContainer';
-import { LevelCard } from '@/components/LevelCard';
+import { LevelCard, IoniconName } from '@/components/LevelCard';
 import { CreditPill } from '@/components/CreditPill';
 import { ProgressBar } from '@/components/ProgressBar';
 import { colors, spacing, typography } from '@/theme';
@@ -16,6 +17,19 @@ import { useWords } from '@/context/WordContext';
 import { LevelCode, WordProgress } from '@/types/models';
 import { AppStackParamList } from '@/navigation/types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { DAILY_WORD_GOAL } from '@/config/appConfig';
+import { toDate } from '@/utils/datetime';
+
+const formatCompactNumber = (value: number) => {
+  if (value >= 1000) {
+    return new Intl.NumberFormat('tr-TR', {
+      notation: 'compact',
+      compactDisplay: 'short',
+      maximumFractionDigits: 1,
+    }).format(value);
+  }
+  return value.toLocaleString('tr-TR');
+};
 
 const calculateLevelProgress = (
   level: LevelCode,
@@ -26,8 +40,6 @@ const calculateLevelProgress = (
   if (totalWords === 0) return 0;
   return mastered / totalWords;
 };
-
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const LEVEL_THEMES: Record<LevelCode, { gradient: [string, string]; icon: IoniconName }> = {
   A1: { gradient: ['#5667FF', '#7A8CFF'], icon: 'rocket' },
@@ -57,11 +69,27 @@ export const HomeScreen: React.FC = () => {
   }, 0);
   const totalWords = totalWordsAcrossLevels > 0 ? totalWordsAcrossLevels : TOTAL_WORD_COUNT;
   const totalProgress = totalWords === 0 ? 0 : masteredCount / totalWords;
-  
-  // Bugünün öğrenme hedefi (örnek: günde 10 kelime)
-  const dailyGoal = 10;
-  const todaysMastered = 7; // Bu gerçek veriden gelecek (şimdilik mock)
-  const streak = 5; // Günlük seri (şimdilik mock)
+
+  const todaysMasteredFromProgress = useMemo(() => {
+    const today = new Date();
+    return Object.values(progressMap).reduce((count, item) => {
+      if (item.status !== 'mastered') {
+        return count;
+      }
+      const lastAnswerDate = toDate(item.lastAnswerAt ?? null);
+      if (!lastAnswerDate) {
+        return count;
+      }
+      return isSameDay(lastAnswerDate, today) ? count + 1 : count;
+    }, 0);
+  }, [progressMap]);
+
+  const dailyGoal = DAILY_WORD_GOAL;
+  const streak = profile?.currentStreak ?? 1; // Varsayılan olarak 1
+  const todaysMastered = profile?.todaysMastered ?? todaysMasteredFromProgress;
+  const formattedStreak = `${formatCompactNumber(Math.max(streak, 1))} gün`; // En az 1 gün göster
+  const formattedDailyProgress = `${formatCompactNumber(todaysMastered)}/${formatCompactNumber(dailyGoal)}`;
+  const formattedFavorites = formatCompactNumber(favoriteCount);
 
   return (
     <GradientBackground paddingTop={spacing.md}>
@@ -87,40 +115,39 @@ export const HomeScreen: React.FC = () => {
                   </View>
                 </View>
 
-                {/* Mini Stats Row */}
-                <View style={styles.miniStatsRow}>
-                  <View style={styles.miniStatItem}>
-                    <View style={styles.miniStatIconBg}>
-                      <Ionicons name="flame" size={18} color="#FFB199" />
+                <View style={styles.heroStatsRow}>
+                  <View style={styles.heroStat}>
+                    <View style={styles.heroStatHeader}>
+                      <View style={[styles.heroStatIconBg, styles.heroStatIconFlame]}>
+                        <Ionicons name="flame" size={16} color="#FFB199" />
+                      </View>
+                      <Text style={styles.heroStatLabel}>Seri</Text>
                     </View>
-                    <View style={styles.miniStatText}>
-                      <Text style={styles.miniStatValue}>{streak} gün</Text>
-                      <Text style={styles.miniStatLabel}>Seri</Text>
-                    </View>
+                    <Text style={styles.heroStatValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                      {formattedStreak}
+                    </Text>
                   </View>
-                  
-                  <View style={styles.miniStatDivider} />
-                  
-                  <View style={styles.miniStatItem}>
-                    <View style={styles.miniStatIconBg}>
-                      <Ionicons name="checkmark-circle" size={18} color="#5AE3B4" />
+                  <View style={styles.heroStat}>
+                    <View style={styles.heroStatHeader}>
+                      <View style={[styles.heroStatIconBg, styles.heroStatIconCheck]}>
+                        <Ionicons name="checkmark-circle" size={16} color="#5AE3B4" />
+                      </View>
+                      <Text style={styles.heroStatLabel}>Bugün</Text>
                     </View>
-                    <View style={styles.miniStatText}>
-                      <Text style={styles.miniStatValue}>{todaysMastered}/{dailyGoal}</Text>
-                      <Text style={styles.miniStatLabel}>Bugün</Text>
-                    </View>
+                    <Text style={styles.heroStatValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                      {formattedDailyProgress}
+                    </Text>
                   </View>
-                  
-                  <View style={styles.miniStatDivider} />
-                  
-                  <View style={styles.miniStatItem}>
-                    <View style={styles.miniStatIconBg}>
-                      <Ionicons name="heart" size={18} color="#FF7A88" />
+                  <View style={styles.heroStat}>
+                    <View style={styles.heroStatHeader}>
+                      <View style={[styles.heroStatIconBg, styles.heroStatIconHeart]}>
+                        <Ionicons name="heart" size={16} color="#FF7A88" />
+                      </View>
+                      <Text style={styles.heroStatLabel}>Favoriler</Text>
                     </View>
-                    <View style={styles.miniStatText}>
-                      <Text style={styles.miniStatValue}>{favoriteCount}</Text>
-                      <Text style={styles.miniStatLabel}>Favoriler</Text>
-                    </View>
+                    <Text style={styles.heroStatValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                      {formattedFavorites}
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -211,45 +238,59 @@ const styles = StyleSheet.create({
   heroPills: {
     gap: spacing.sm,
   },
-  miniStatsRow: {
+  heroStatsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  heroStat: {
+    flex: 1,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: spacing.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
+    alignItems: 'center',
+    minWidth: 0,
   },
-  miniStatItem: {
+  heroStatHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
+    width: '100%',
+    justifyContent: 'center',
   },
-  miniStatIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+  heroStatIconBg: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignSelf: 'center',
   },
-  miniStatText: {
-    gap: 2,
+  heroStatIconFlame: {
+    backgroundColor: 'rgba(255, 123, 136, 0.18)',
   },
-  miniStatValue: {
+  heroStatIconCheck: {
+    backgroundColor: 'rgba(90, 227, 180, 0.18)',
+  },
+  heroStatIconHeart: {
+    backgroundColor: 'rgba(123, 97, 255, 0.18)',
+  },
+  heroStatLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  heroStatValue: {
     ...typography.subtitle,
     color: colors.textPrimary,
     fontWeight: '700',
-  },
-  miniStatLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontSize: 11,
-  },
-  miniStatDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    minWidth: 0,
+    textAlign: 'center',
   },
   progressCard: {
     backgroundColor: colors.card,

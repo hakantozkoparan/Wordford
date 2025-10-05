@@ -3,6 +3,7 @@ import { collection, doc, onSnapshot, runTransaction, serverTimestamp } from 'fi
 import { FIREBASE_COLLECTIONS } from '@/config/appConfig';
 import { db } from '@/config/firebase';
 import { WordEntry, WordProgress } from '@/types/models';
+import { incrementDailyMastered } from './userStatsService';
 
 const getProgressCollectionRef = (userId: string) =>
   collection(db, FIREBASE_COLLECTIONS.users, userId, FIREBASE_COLLECTIONS.progress);
@@ -41,6 +42,7 @@ export const subscribeToProgress = (
 
 export const recordAnswerResult = async (userId: string, word: WordEntry, isCorrect: boolean) => {
   const ref = getProgressDocRef(userId, word.id);
+  let becameMastered = false;
   await runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(ref);
     const existing = snapshot.exists() ? (snapshot.data() as WordProgress) : undefined;
@@ -50,18 +52,28 @@ export const recordAnswerResult = async (userId: string, word: WordEntry, isCorr
       ? { wordId: word.id, level: word.level }
       : { ...buildBaseProgress(word), createdAt: serverTimestamp() };
 
+    const nextStatus = isCorrect ? 'mastered' : 'inProgress';
+    const wasMastered = existing?.status === 'mastered';
+    if (nextStatus === 'mastered' && !wasMastered) {
+      becameMastered = true;
+    }
+
     transaction.set(
       ref,
       {
         ...basePayload,
         attempts,
-        status: isCorrect ? 'mastered' : 'inProgress',
+        status: nextStatus,
         lastAnswerAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       },
       { merge: true },
     );
   });
+
+  if (becameMastered) {
+    await incrementDailyMastered(userId);
+  }
 };
 
 export const toggleFavorite = async (userId: string, word: WordEntry, isFavorite: boolean) => {

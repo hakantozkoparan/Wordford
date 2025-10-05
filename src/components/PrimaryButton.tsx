@@ -66,10 +66,7 @@ export const PrimaryButton: React.FC<Props> = ({
   const labelStyle = size === 'compact' ? styles.labelCompact : styles.label;
 
   return (
-    <Animated.View
-      entering={FadeIn}
-  style={[styles.wrapper, size === 'compact' && styles.wrapperCompact, { opacity: disabled ? 0.6 : 1 }, style]}
-    >
+    <Animated.View entering={FadeIn} style={[styles.wrapper, size === 'compact' && styles.wrapperCompact, style]}>
       <Pressable
         accessibilityRole="button"
         style={[
@@ -79,6 +76,7 @@ export const PrimaryButton: React.FC<Props> = ({
             backgroundColor: variantStyles.backgroundColor,
             borderColor: variantStyles.borderColor,
           },
+          { opacity: disabled ? 0.6 : 1 },
         ]}
         onPress={onPress}
         disabled={disabled || loading}

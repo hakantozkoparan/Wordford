@@ -8,7 +8,7 @@ import { colors, radius, spacing, typography } from '@/theme';
 import { LevelCode } from '@/types/models';
 import { ProgressBar } from './ProgressBar';
 
-type IoniconName = ComponentProps<typeof Ionicons>['name'];
+export type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
 interface Props {
   level: LevelCode;

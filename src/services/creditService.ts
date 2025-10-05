@@ -2,7 +2,6 @@ import {
   Timestamp,
   collection,
   doc,
-  getDoc,
   runTransaction,
   serverTimestamp,
   setDoc,
@@ -18,16 +17,9 @@ import { db, firebaseServerTimestamp } from '@/config/firebase';
 import { CreditTransaction } from '@/types/models';
 import { hasOneDayPassed } from '@/utils/datetime';
 import { nanoid } from 'nanoid/non-secure';
+import { getServerNow } from './timeService';
 
 export const getUserRef = (userId: string) => doc(db, FIREBASE_COLLECTIONS.users, userId);
-
-const getServerNow = async (): Promise<Date> => {
-  const ref = doc(db, 'meta', 'server-time');
-  await setDoc(ref, { now: firebaseServerTimestamp() }, { merge: true });
-  const snapshot = await getDoc(ref);
-  const serverNow = snapshot.data()?.now as Timestamp | undefined;
-  return serverNow?.toDate() ?? new Date();
-};
 
 export const ensureDailyCredits = async (userId: string) => {
   const userRef = getUserRef(userId);

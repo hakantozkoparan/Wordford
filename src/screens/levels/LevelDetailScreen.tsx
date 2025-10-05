@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -36,7 +36,6 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   } = useWords();
   const { profile, spendCredit, spendHintToken } = useAuth();
   const [index, setIndex] = useState(route.params.index ?? 0);
-  const [sessionCompletedIds, setSessionCompletedIds] = useState<Set<string>>(new Set());
   const [revealed, setRevealed] = useState(false);
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
   const [favorite, setFavorite] = useState(false);
@@ -49,12 +48,12 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const { control, handleSubmit, reset } = useForm<FormValues>({ defaultValues: { answer: '' } });
 
   useEffect(() => {
-    loadLevelWords(level as LevelCode).catch(() => undefined);
-  }, [level, loadLevelWords]);
+    setShowCelebration(false);
+  }, [level]);
 
   useEffect(() => {
-    setSessionCompletedIds(new Set());
-  }, [level]);
+    loadLevelWords(level as LevelCode).catch(() => undefined);
+  }, [level, loadLevelWords]);
 
   const words = useMemo(() => wordsByLevel[level as LevelCode] ?? [], [level, wordsByLevel]);
   const word = words[index];
@@ -66,53 +65,19 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const showFavoriteAction = feedback === 'correct';
   const showRevealAction = feedback !== 'correct';
 
-  // Tüm kelimelerin durumunu kontrol et
-  const allWordsMastered = useMemo(() => {
-    if (words.length === 0) return false;
-    return words.every((w) => {
-      const progress = progressMap[w.id];
-      return progress?.status === 'mastered' || sessionCompletedIds.has(w.id);
-    });
-  }, [words, progressMap, sessionCompletedIds]);
-
-  const isWordCompleted = useCallback(
-    (entry: WordEntry) => {
-      const progress = progressMap[entry.id];
-      return progress?.status === 'mastered' || sessionCompletedIds.has(entry.id);
-    },
-    [progressMap, sessionCompletedIds]
-  );
-
   useEffect(() => {
-    if (feedback === 'correct') {
-      return;
-    }
-
     if (words.length === 0) {
       if (index !== 0) {
         setIndex(0);
       }
       return;
     }
-
-    const current = words[index];
-    if (!current || isWordCompleted(current)) {
-      const nextIndex = words.findIndex((entry) => !isWordCompleted(entry));
-      if (nextIndex >= 0) {
-        setIndex(nextIndex);
-      }
+    if (index >= words.length) {
+      setIndex(0);
     }
-  }, [words, index, isWordCompleted, feedback]);
+  }, [words, index]);
 
   const shouldShowCelebrationScreen = showCelebration;
-
-  useEffect(() => {
-    if (allWordsMastered && !showCelebration && feedback !== 'correct') {
-      setShowCelebration(true);
-    } else if (!allWordsMastered && showCelebration) {
-      setShowCelebration(false);
-    }
-  }, [allWordsMastered, showCelebration, feedback]);
 
   useEffect(() => {
     if (!word) return;
@@ -175,39 +140,13 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
     const currentWord = words[index];
     if (!currentWord) return;
-
-    const updatedCompleted = new Set(sessionCompletedIds);
-    updatedCompleted.add(currentWord.id);
-    setSessionCompletedIds(updatedCompleted);
-
-    const isCompleted = (entry: WordEntry) => {
-      const progress = progressMap[entry.id];
-      return progress?.status === 'mastered' || updatedCompleted.has(entry.id);
-    };
-
-    let nextIndex = -1;
-    for (let candidate = index + 1; candidate < words.length; candidate += 1) {
-      if (!isCompleted(words[candidate])) {
-        nextIndex = candidate;
-        break;
-      }
-    }
-
-    if (nextIndex === -1) {
-      for (let candidate = 0; candidate < index; candidate += 1) {
-        if (!isCompleted(words[candidate])) {
-          nextIndex = candidate;
-          break;
-        }
-      }
-    }
-
-    if (nextIndex === -1) {
+    const isLastWord = index >= words.length - 1;
+    if (isLastWord) {
       setShowCelebration(true);
       return;
     }
 
-    setIndex(nextIndex);
+    setIndex((prev) => prev + 1);
     setFeedback(null);
     setRevealed(false);
     setError(null);

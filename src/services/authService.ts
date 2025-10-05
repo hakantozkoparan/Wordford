@@ -89,6 +89,8 @@ export const registerUser = async (payload: RegistrationPayload) => {
     currentStreak: 0,
     longestStreak: 0,
     lastActivityDate: null,
+    todaysMastered: 0,
+    todaysMasteredDate: null,
     // Cihaz geçmişi
     deviceHistory: [device],
   };

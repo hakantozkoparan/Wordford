@@ -68,6 +68,8 @@ export interface UserProfile {
   currentStreak?: number;
   longestStreak?: number;
   lastActivityDate?: Timestamp | null;
+  todaysMastered?: number;
+  todaysMasteredDate?: Timestamp | null;
   // Cihaz geçmişi (son kullanılan cihazlar)
   deviceHistory?: DeviceMetadata[];
 }
@@ -92,10 +94,10 @@ export interface WordProgress {
   attempts: number;
   isFavorite: boolean;
   userExampleSentence?: string; // Kullanıcının kendi eklediği örnek cümle
-  lastAnswerAt?: Timestamp | null;
+  lastAnswerAt?: Timestamp | Date | null;
   usedHint: boolean;
-  createdAt?: Timestamp | null;
-  updatedAt?: Timestamp | null;
+  createdAt?: Timestamp | Date | null;
+  updatedAt?: Timestamp | Date | null;
 }
 
 export interface CaptchaChallenge {
