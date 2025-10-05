@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { GradientBackground } from '@/components/GradientBackground';
 import { ScreenContainer } from '@/components/ScreenContainer';
@@ -13,7 +13,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppStackParamList } from '@/navigation/types';
 
 export const ProfileScreen: React.FC = () => {
-  const { profile, signOut, firebaseUser } = useAuth();
+  const { profile, signOut, firebaseUser, deleteAccount, loading } = useAuth();
   const { favorites, knownWords } = useWords();
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const isAuthenticated = Boolean(firebaseUser);
@@ -43,9 +43,30 @@ export const ProfileScreen: React.FC = () => {
     navigation.navigate('Register');
   };
 
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      'Hesabı Sil',
+      'Hesabınızı kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.',
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Evet, sil',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAccount();
+            } catch {
+              // Hata mesajı AuthContext tarafından gösteriliyor.
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
-    <GradientBackground>
-      <ScreenContainer>
+    <GradientBackground paddingTop={spacing.md}>
+      <ScreenContainer edges={['left', 'right']}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <Text style={styles.title}>Profilim</Text>
           {isAuthenticated ? (
@@ -89,6 +110,20 @@ export const ProfileScreen: React.FC = () => {
                   style={styles.adminButton}
                 />
               ) : null}
+
+              <View style={styles.deleteSection}>
+                <Text style={styles.deleteTitle}>Hesabını Sil</Text>
+                <Text style={styles.deleteDescription}>
+                  Hesabını silersen tüm verilerin kalıcı olarak kaldırılır ve geri alınamaz.
+                </Text>
+                <PrimaryButton
+                  label="Hesabımı Sil"
+                  onPress={confirmDeleteAccount}
+                  variant="danger"
+                  style={styles.deleteButton}
+                  loading={loading}
+                />
+              </View>
             </>
           ) : (
             <View style={styles.section}>
@@ -110,7 +145,7 @@ export const ProfileScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.xs,
     gap: spacing.lg,
   },
   title: {
@@ -160,5 +195,25 @@ const styles = StyleSheet.create({
   authButtonGroup: {
     gap: spacing.sm,
     marginTop: spacing.md,
+  },
+  deleteSection: {
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  deleteTitle: {
+    ...typography.title,
+    color: colors.danger,
+  },
+  deleteDescription: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  deleteButton: {
+    marginTop: spacing.xs,
   },
 });

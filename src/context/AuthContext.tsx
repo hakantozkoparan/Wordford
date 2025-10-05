@@ -1,11 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
-import { User, onAuthStateChanged } from 'firebase/auth';
+import { AuthError, User, onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 import { DAILY_FREE_CREDITS, DAILY_HINT_TOKENS, FIREBASE_COLLECTIONS } from '@/config/appConfig';
 import { auth, db } from '@/config/firebase';
-import { loginUser, logoutUser, parseAuthError, registerUser } from '@/services/authService';
+import { deleteUserAccount, loginUser, logoutUser, parseAuthError, registerUser } from '@/services/authService';
 import { consumeCredit, consumeHintToken, ensureDailyCredits } from '@/services/creditService';
 import { getDeviceMetadata } from '@/utils/device';
 import { UserProfile } from '@/types/models';
@@ -32,6 +32,7 @@ interface AuthContextValue {
   register: (form: RegisterForm) => Promise<void>;
   login: (form: LoginForm) => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   refreshDailyCredits: () => Promise<void>;
   spendCredit: (amount?: number) => Promise<void>;
   spendHintToken: () => Promise<void>;
@@ -132,6 +133,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    if (!firebaseUser) {
+      return;
+    }
+
+    const lastSignInTime = firebaseUser.metadata?.lastSignInTime
+      ? new Date(firebaseUser.metadata.lastSignInTime).getTime()
+      : null;
+    const requiresRecentLogin = !lastSignInTime || Date.now() - lastSignInTime > 5 * 60 * 1000;
+
+    if (requiresRecentLogin) {
+      const message =
+        'Güvenlik nedeniyle hesap silme işlemini tamamlayabilmek için lütfen hesabınıza tekrar giriş yapın.';
+      setError(message);
+      Alert.alert(
+        'Tekrar giriş yapmanız gerekiyor',
+        `${message}\n\nProfil ekranından "Giriş Yap" seçeneğini kullanarak yeniden oturum açtıktan sonra hesabınızı silebilirsiniz.`,
+      );
+      await logoutUser();
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      await deleteUserAccount(firebaseUser);
+      Alert.alert('Hesap Silindi', 'Hesabınız kalıcı olarak silindi.');
+    } catch (err) {
+      const authError = err as AuthError;
+      if (authError?.code === 'auth/requires-recent-login') {
+        console.warn('Hesap silme işlemi için yeniden oturum açılması gerekiyor.');
+        const message =
+          'Güvenlik nedeniyle hesap silme işlemini tamamlayabilmek için lütfen hesabınıza tekrar giriş yapın.';
+        await logoutUser();
+        setError(message);
+        Alert.alert(
+          'Tekrar giriş yapmanız gerekiyor',
+          `${message}\n\nProfil ekranından "Giriş Yap" seçeneğini kullanarak yeniden oturum açtıktan sonra hesabınızı silebilirsiniz.`,
+        );
+        return;
+      }
+      console.error('Hesap silme hatası:', err);
+      const message = parseAuthError(err);
+      setError(message);
+      Alert.alert('Hesap silinemedi', message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [firebaseUser]);
+
   const refreshDailyCredits = useCallback(async () => {
     if (!firebaseUser) return;
     await ensureDailyCredits(firebaseUser.uid);
@@ -160,11 +212,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       register,
       login,
       signOut,
+      deleteAccount,
       refreshDailyCredits,
       spendCredit,
       spendHintToken,
     }),
-    [firebaseUser, profile, initializing, loading, error, register, login, signOut, refreshDailyCredits, spendCredit, spendHintToken],
+    [firebaseUser, profile, initializing, loading, error, register, login, signOut, deleteAccount, refreshDailyCredits, spendCredit, spendHintToken],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,11 +1,22 @@
 import {
   AuthError,
+  User,
   createUserWithEmailAndPassword,
+  deleteUser,
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
 } from 'firebase/auth';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  query,
+  serverTimestamp,
+  setDoc,
+  where,
+} from 'firebase/firestore';
 
 import { DAILY_FREE_CREDITS, DAILY_HINT_TOKENS, FIREBASE_COLLECTIONS } from '@/config/appConfig';
 import { auth, db } from '@/config/firebase';
@@ -115,6 +126,27 @@ export const logoutUser = async () => {
   await signOut(auth);
 };
 
+export const deleteUserAccount = async (user: User) => {
+  const userId = user.uid;
+  const userRef = doc(db, FIREBASE_COLLECTIONS.users, userId);
+
+  const progressCollectionRef = collection(userRef, FIREBASE_COLLECTIONS.progress);
+  const progressSnapshot = await getDocs(progressCollectionRef);
+  await Promise.all(progressSnapshot.docs.map((docSnap) => deleteDoc(docSnap.ref)));
+
+  const creditQuery = query(
+    collection(db, FIREBASE_COLLECTIONS.creditTransactions),
+    where('userId', '==', userId),
+  );
+  const creditSnapshot = await getDocs(creditQuery);
+  await Promise.all(creditSnapshot.docs.map((docSnap) => deleteDoc(docSnap.ref)));
+
+  await deleteDoc(userRef);
+
+  const userToDelete = auth.currentUser && auth.currentUser.uid === userId ? auth.currentUser : user;
+  await deleteUser(userToDelete);
+};
+
 export const parseAuthError = (error: unknown): string => {
   const authError = error as AuthError;
   switch (authError?.code) {
@@ -128,6 +160,8 @@ export const parseAuthError = (error: unknown): string => {
       return 'Kullanıcı bulunamadı.';
     case 'auth/wrong-password':
       return 'E-posta veya şifre hatalı.';
+    case 'auth/requires-recent-login':
+      return 'Güvenlik nedeniyle lütfen hesabınıza tekrar giriş yapın ve işlemi yeniden deneyin.';
     default:
       return 'Bir hata oluştu. Lütfen tekrar deneyin.';
   }
