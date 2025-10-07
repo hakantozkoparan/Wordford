@@ -35,15 +35,22 @@ export const AdminWordScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp<AppStackParamList>>();
   const { wordsByLevel, loadLevelWords } = useWords();
   const [submitting, setSubmitting] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [bulkSummary, setBulkSummary] = useState<string | null>(null);
+  const [bulkErrors, setBulkErrors] = useState<string[]>([]);
   const {
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: yupResolver(schema),
     defaultValues: { level: 'A1', term: '', meanings: '' },
   });
+
+  const selectedLevel = watch('level');
 
   const onSubmit = handleSubmit(async (values) => {
     setSubmitting(true);
@@ -78,6 +85,88 @@ export const AdminWordScreen: React.FC = () => {
       setSubmitting(false);
     }
   });
+
+  const handleBulkAdd = async () => {
+    const level = selectedLevel;
+    if (!level) {
+      Alert.alert('Uyarı', 'Lütfen önce bir seviye seçin.');
+      return;
+    }
+
+    const lines = bulkText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (lines.length === 0) {
+      Alert.alert('Uyarı', 'Lütfen eklenecek kelimeleri girin.');
+      return;
+    }
+
+    setBulkSubmitting(true);
+    setBulkSummary(null);
+    setBulkErrors([]);
+
+    const currentWords = wordsByLevel[level] ?? [];
+    const knownTerms = new Set(
+      currentWords.map((word: WordEntry) => word.term.toLocaleLowerCase('tr-TR')),
+    );
+
+    let successCount = 0;
+    const failed: string[] = [];
+
+    for (const rawLine of lines) {
+      const [termPart, ...rest] = rawLine.split('-');
+      const meaningsPart = rest.join('-');
+      const term = termPart?.trim() ?? '';
+      const meanings = meaningsPart
+        .split(',')
+        .map((meaning) => meaning.trim())
+        .filter(Boolean);
+
+      if (!term || meanings.length === 0) {
+        failed.push(`${rawLine} • format hatası`);
+        continue;
+      }
+
+      const normalizedTerm = term.toLocaleLowerCase('tr-TR');
+      if (knownTerms.has(normalizedTerm)) {
+        failed.push(`${rawLine} • zaten mevcut`);
+        continue;
+      }
+
+      const newWord: WordEntry = {
+        id: nanoid(10),
+        level,
+        term,
+        meanings,
+        synonyms: [],
+      };
+
+      try {
+        await seedWordIfMissing(newWord);
+        knownTerms.add(normalizedTerm);
+        successCount += 1;
+      } catch (error) {
+        failed.push(`${rawLine} • ${(error as Error).message ?? 'kaydedilemedi'}`);
+      }
+    }
+
+    if (successCount > 0) {
+      await loadLevelWords(level);
+      setBulkText('');
+    }
+
+    const summaryMessage = `${successCount} kelime eklendi${failed.length ? `, ${failed.length} satır atlandı` : ''}.`;
+    setBulkSummary(summaryMessage);
+    setBulkErrors(failed);
+    setBulkSubmitting(false);
+
+    Alert.alert(
+      failed.length ? 'Toplu ekleme tamamlandı' : 'Toplu ekleme başarılı',
+      summaryMessage,
+    );
+  };
 
   return (
     <GradientBackground paddingTop={spacing.lg}>
@@ -179,6 +268,57 @@ export const AdminWordScreen: React.FC = () => {
               label="Kelimeyi Kaydet"
               onPress={onSubmit}
               loading={submitting}
+            />
+          </View>
+
+          <View style={styles.bulkCard}>
+            <Text style={styles.sectionTitle}>Toplu ekle</Text>
+            <Text style={styles.sectionDescription}>
+              Her satırı <Text style={styles.inlineCode}>kelime - anlam1, anlam2</Text> formatında yaz. Anlamları virgülle ayırabilirsin.
+            </Text>
+
+            <View style={styles.bulkExampleBox}>
+              <Text style={styles.bulkExampleLabel}>Örnek</Text>
+              <Text style={styles.bulkExampleLine}>kitap - book, volume</Text>
+              <Text style={styles.bulkExampleLine}>hızlı - fast, quick</Text>
+            </View>
+
+            <TextField
+              label="Kelime listesi"
+              placeholder="kelime - anlam1, anlam2"
+              value={bulkText}
+              onChangeText={setBulkText}
+              multiline
+              numberOfLines={7}
+              style={styles.bulkTextArea}
+              containerStyle={styles.bulkInputContainer}
+              editable={!bulkSubmitting}
+            />
+
+            {bulkSummary ? <Text style={styles.bulkSummary}>{bulkSummary}</Text> : null}
+
+            {bulkErrors.length ? (
+              <View style={styles.bulkErrorList}>
+                <Text style={styles.bulkErrorsTitle}>İşlenemeyen satırlar</Text>
+                {bulkErrors.slice(0, 5).map((item, index) => (
+                  <Text key={`${item}-${index}`} style={styles.bulkErrorItem}>
+                    {item}
+                  </Text>
+                ))}
+                {bulkErrors.length > 5 ? (
+                  <Text style={styles.bulkErrorMore}>... ve {bulkErrors.length - 5} satır daha</Text>
+                ) : null}
+              </View>
+            ) : null}
+
+            <PrimaryButton
+              label={bulkSubmitting ? 'Ekleniyor...' : 'Toplu olarak ekle'}
+              onPress={handleBulkAdd}
+              loading={bulkSubmitting}
+              disabled={bulkSubmitting}
+              variant="secondary"
+              icon="cloud-upload-outline"
+              iconColor={colors.accent}
             />
           </View>
         </ScrollView>
@@ -307,5 +447,75 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     marginBottom: 0,
+  },
+  bulkCard: {
+    backgroundColor: 'rgba(12, 18, 41, 0.45)',
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    gap: spacing.md,
+  },
+  inlineCode: {
+    fontFamily: typography.caption.fontFamily,
+    fontSize: typography.caption.fontSize,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    color: colors.textPrimary,
+  },
+  bulkExampleBox: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  bulkExampleLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  bulkExampleLine: {
+    ...typography.body,
+    color: colors.textPrimary,
+  },
+  bulkTextArea: {
+    minHeight: 160,
+    textAlignVertical: 'top',
+  },
+  bulkInputContainer: {
+    marginBottom: 0,
+  },
+  bulkSummary: {
+    ...typography.caption,
+    color: colors.accent,
+  },
+  bulkErrorList: {
+    backgroundColor: 'rgba(255, 86, 86, 0.08)',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 86, 86, 0.2)',
+  },
+  bulkErrorsTitle: {
+    ...typography.caption,
+    color: colors.danger,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  bulkErrorItem: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  bulkErrorMore: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
   },
 });
