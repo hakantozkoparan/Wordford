@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { Controller, useForm } from 'react-hook-form';
@@ -51,10 +51,44 @@ export const AdminWordScreen: React.FC = () => {
   });
 
   const selectedLevel = watch('level');
+  const allWords = useMemo(
+    () => LEVEL_CODES.flatMap((code) => wordsByLevel[code] ?? []),
+    [wordsByLevel],
+  );
+
+  const wordLookupByTerm = useMemo(() => {
+    const lookup = new Map<string, WordEntry>();
+    allWords.forEach((word) => {
+      const key = word.term.toLocaleLowerCase('tr-TR');
+      if (!lookup.has(key)) {
+        lookup.set(key, word);
+      }
+    });
+    return lookup;
+  }, [allWords]);
+
+  useEffect(() => {
+    const levelsToLoad = LEVEL_CODES.filter((level) => !(wordsByLevel[level]?.length));
+    if (!levelsToLoad.length) {
+      return;
+    }
+
+    levelsToLoad.forEach((level) => {
+      loadLevelWords(level).catch(() => undefined);
+    });
+  }, [loadLevelWords, wordsByLevel]);
 
   const onSubmit = handleSubmit(async (values) => {
     setSubmitting(true);
     try {
+      const normalizedTerm = values.term.trim().toLocaleLowerCase('tr-TR');
+      const existingWord = wordLookupByTerm.get(normalizedTerm);
+
+      if (existingWord) {
+        Alert.alert('Uyarı', `Bu kelime zaten ${existingWord.level} seviyesinde kayıtlı.`);
+        return;
+      }
+
       const normalizedMeanings = values.meanings
         .split(',')
         .map((meaning: string) => meaning.trim())
@@ -67,13 +101,6 @@ export const AdminWordScreen: React.FC = () => {
         meanings: normalizedMeanings,
         synonyms: [],
       };
-
-      const levelWords = wordsByLevel[values.level] ?? [];
-      const exists = levelWords.some((word: WordEntry) => word.term.toLocaleLowerCase('tr-TR') === newWord.term.toLocaleLowerCase('tr-TR'));
-      if (exists) {
-        Alert.alert('Uyarı', 'Bu kelime zaten mevcut.');
-        return;
-      }
 
       await seedWordIfMissing(newWord);
       await loadLevelWords(values.level);
@@ -107,10 +134,10 @@ export const AdminWordScreen: React.FC = () => {
     setBulkSummary(null);
     setBulkErrors([]);
 
-    const currentWords = wordsByLevel[level] ?? [];
-    const knownTerms = new Set(
-      currentWords.map((word: WordEntry) => word.term.toLocaleLowerCase('tr-TR')),
-    );
+    const knownTerms = new Map<string, LevelCode>();
+    wordLookupByTerm.forEach((word, key) => {
+      knownTerms.set(key, word.level);
+    });
 
     let successCount = 0;
     const failed: string[] = [];
@@ -130,8 +157,9 @@ export const AdminWordScreen: React.FC = () => {
       }
 
       const normalizedTerm = term.toLocaleLowerCase('tr-TR');
-      if (knownTerms.has(normalizedTerm)) {
-        failed.push(`${rawLine} • zaten mevcut`);
+      const existingLevel = knownTerms.get(normalizedTerm);
+      if (existingLevel) {
+        failed.push(`${rawLine} • ${existingLevel} seviyesinde mevcut`);
         continue;
       }
 
@@ -145,7 +173,7 @@ export const AdminWordScreen: React.FC = () => {
 
       try {
         await seedWordIfMissing(newWord);
-        knownTerms.add(normalizedTerm);
+  knownTerms.set(normalizedTerm, level);
         successCount += 1;
       } catch (error) {
         failed.push(`${rawLine} • ${(error as Error).message ?? 'kaydedilemedi'}`);
