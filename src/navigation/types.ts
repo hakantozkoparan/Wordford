@@ -1,9 +1,12 @@
+import { LevelCode } from '@/types/models';
+
 export type AppStackParamList = {
   Tabs: undefined;
   LevelDetail: { level: string; index?: number };
   AdminWordManager: undefined;
   Login: undefined;
   Register: undefined;
+  WordExampleEdit: { level: LevelCode; wordId: string };
 };
 
 export type TabsParamList = {

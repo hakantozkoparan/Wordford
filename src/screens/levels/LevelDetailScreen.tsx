@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -25,6 +25,8 @@ type Props = NativeStackScreenProps<AppStackParamList, 'LevelDetail'>;
 
 export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const { level } = route.params;
+  const hasInitialIndex = route.params.index !== undefined;
+  const initialIndexRef = useRef(hasInitialIndex);
   const {
     wordsByLevel,
     loadLevelWords,
@@ -49,6 +51,7 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   useEffect(() => {
     setManualCelebration(false);
+    initialIndexRef.current = hasInitialIndex;
   }, [level]);
 
   useEffect(() => {
@@ -84,6 +87,29 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const shouldShowCelebrationScreen =
     manualCelebration || (areAllWordsMastered && feedback !== 'correct');
+
+  useEffect(() => {
+    if (initialIndexRef.current) {
+      return;
+    }
+
+    if (words.length === 0) {
+      return;
+    }
+
+    const firstPendingIndex = words.findIndex((entry) => progressMap[entry.id]?.status !== 'mastered');
+
+    if (firstPendingIndex === -1) {
+      initialIndexRef.current = true;
+      return;
+    }
+
+    if (firstPendingIndex !== index) {
+      setIndex(firstPendingIndex);
+    }
+
+    initialIndexRef.current = true;
+  }, [words, progressMap, index]);
 
   useEffect(() => {
     if (hasPendingWords && manualCelebration) {
@@ -206,7 +232,7 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   if (!word) {
     return (
       <GradientBackground>
-        <ScreenContainer style={styles.centered}>
+        <ScreenContainer style={styles.centered} edges={['top', 'left', 'right']}>
           <Text style={styles.emptyText}>Bu seviyede kelime bulunamadı.</Text>
         </ScreenContainer>
       </GradientBackground>
@@ -217,7 +243,11 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   if (shouldShowCelebrationScreen) {
     return (
       <GradientBackground>
-        <ScreenContainer style={styles.celebrationScreen} contentStyle={styles.celebrationScreenContent}>
+        <ScreenContainer
+          style={styles.celebrationScreen}
+          contentStyle={styles.celebrationScreenContent}
+          edges={['top', 'left', 'right']}
+        >
           <Animated.View entering={FadeIn.duration(600)} style={styles.celebrationContent}>
             <Ionicons name="trophy" size={94} color={colors.accent} />
             <Text style={styles.celebrationTitle}>Tebrikler! 🎉</Text>
@@ -257,7 +287,7 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   return (
     <GradientBackground>
-      <ScreenContainer style={styles.container}>
+      <ScreenContainer style={styles.container} edges={['top', 'left', 'right']}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
           <ScrollView
             keyboardShouldPersistTaps="handled"
@@ -453,12 +483,12 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.lg,
     marginTop: -spacing.lg,
   },
   flex: { flex: 1 },
   scrollContent: {
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.lg,
     gap: spacing.md,
     paddingTop: spacing.sm,
   },

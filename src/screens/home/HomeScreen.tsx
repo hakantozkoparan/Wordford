@@ -12,6 +12,7 @@ import { CreditPill } from '@/components/CreditPill';
 import { ProgressBar } from '@/components/ProgressBar';
 import { colors, spacing, typography } from '@/theme';
 import { LEVEL_CODES, LEVEL_LABELS, TOTAL_WORD_COUNT, WORDS_PER_LEVEL } from '@/constants/levels';
+import { LEVEL_GRADIENTS, LEVEL_ICONS } from '@/constants/levelThemes';
 import { useAuth } from '@/context/AuthContext';
 import { useWords } from '@/context/WordContext';
 import { LevelCode, WordProgress } from '@/types/models';
@@ -39,15 +40,6 @@ const calculateLevelProgress = (
   const mastered = Object.values(progressMap).filter((p) => p.level === level && p.status === 'mastered').length;
   if (totalWords === 0) return 0;
   return mastered / totalWords;
-};
-
-const LEVEL_THEMES: Record<LevelCode, { gradient: [string, string]; icon: IoniconName }> = {
-  A1: { gradient: ['#5667FF', '#7A8CFF'], icon: 'rocket' },
-  A2: { gradient: ['#FF7A88', '#FFB199'], icon: 'flame' },
-  B1: { gradient: ['#3BC8D9', '#5AE3B4'], icon: 'planet' },
-  B2: { gradient: ['#8A5DFF', '#B38CFF'], icon: 'sparkles' },
-  C1: { gradient: ['#F8A937', '#FDC26F'], icon: 'star' },
-  C2: { gradient: ['#36C1FF', '#6ADFEE'], icon: 'trophy' },
 };
 
 export const HomeScreen: React.FC = () => {
@@ -180,7 +172,8 @@ export const HomeScreen: React.FC = () => {
               {LEVEL_CODES.map((item, index) => {
                 const words = wordsByLevel[item]?.length ?? WORDS_PER_LEVEL;
                 const progress = calculateLevelProgress(item, progressMap, words);
-                const { gradient, icon } = LEVEL_THEMES[item];
+                const gradient = LEVEL_GRADIENTS[item];
+                const icon = LEVEL_ICONS[item];
                 const containerStyle = [styles.levelItem];
                 if (index === LEVEL_CODES.length - 1) {
                   containerStyle.push(styles.levelItemLast);

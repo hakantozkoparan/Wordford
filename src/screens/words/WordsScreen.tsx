@@ -1,11 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { GradientBackground } from '@/components/GradientBackground';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { colors, radius, spacing, typography } from '@/theme';
-import { LevelCode } from '@/types/models';
+import { useWords } from '@/context/WordContext';
+import { LevelCode, WordEntry, WordProgress } from '@/types/models';
+import { toDate } from '@/utils/datetime';
+import { LEVEL_GRADIENTS } from '@/constants/levelThemes';
+import { AppStackParamList } from '@/navigation/types';
 
 type WordCardItem = {
   id: string;
@@ -13,126 +20,126 @@ type WordCardItem = {
   level: LevelCode;
   meanings: string[];
   example?: string;
-  tags?: string[];
-  lastReviewed?: string;
   isFavorite: boolean;
+  wordEntry: WordEntry;
+  progress: WordProgress;
 };
 
-// Mock data: Tüm bilinen kelimeler
-const ALL_KNOWN_WORDS_MOCK: WordCardItem[] = [
-  {
-    id: 'word-1',
-    term: 'serendipity',
-    level: 'C1',
-    meanings: ['tesadüfen bulunan güzel şey', 'hoş sürpriz'],
-    example: 'Finding the café was pure serendipity after getting lost in the city.',
-    tags: ['duygu', 'günlük konuşma'],
-    lastReviewed: '2 gün önce',
-    isFavorite: true,
-  },
-  {
-    id: 'word-2',
-    term: 'eloquent',
-    level: 'B2',
-    meanings: ['etkileyici konuşan', 'düşüncelerini ifade eden'],
-    example: 'She delivered an eloquent speech about environmental awareness.',
-    tags: ['konuşma', 'sunum'],
-    lastReviewed: '5 gün önce',
-    isFavorite: true,
-  },
-  {
-    id: 'word-3',
-    term: 'humble',
-    level: 'B1',
-    meanings: ['alçakgönüllü'],
-    example: 'Despite his success, he always remained humble.',
-    tags: ['karakter'],
-    lastReviewed: '1 hafta önce',
-    isFavorite: false,
-  },
-  {
-    id: 'word-4',
-    term: 'wander',
-    level: 'A2',
-    meanings: ['dolaşmak', 'gezmek'],
-    example: 'We wandered around the old town after dinner.',
-    tags: ['seyahat'],
-    lastReviewed: 'Bugün',
-    isFavorite: false,
-  },
-  {
-    id: 'word-5',
-    term: 'compile',
-    level: 'C1',
-    meanings: ['derlemek', 'toplamak'],
-    example: 'The researcher compiled the data from several sources.',
-    tags: ['akademik', 'iş'],
-    lastReviewed: '3 gün önce',
-    isFavorite: true,
-  },
-  {
-    id: 'word-6',
-    term: 'vivid',
-    level: 'B2',
-    meanings: ['canlı', 'net'],
-    example: 'She still has vivid memories of her childhood home.',
-    tags: ['duygu'],
-    lastReviewed: '1 hafta önce',
-    isFavorite: false,
-  },
-  {
-    id: 'word-7',
-    term: 'approach',
-    level: 'B1',
-    meanings: ['yaklaşmak', 'ele almak'],
-    example: 'We need a fresh approach to solve this challenge.',
-    tags: ['iş'],
-    lastReviewed: '2 hafta önce',
-    isFavorite: false,
-  },
-];
+const compareByLastReview = (a: WordCardItem, b: WordCardItem) => {
+  const timeA = toDate(a.progress.lastAnswerAt ?? null)?.getTime() ?? 0;
+  const timeB = toDate(b.progress.lastAnswerAt ?? null)?.getTime() ?? 0;
+  return timeB - timeA;
+};
 
 export const WordsScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'known' | 'favorites'>('known');
   const [searchQuery, setSearchQuery] = useState('');
-  const [words, setWords] = useState<WordCardItem[]>(ALL_KNOWN_WORDS_MOCK);
+  const { knownWords, favorites, wordsByLevel, loadLevelWords, toggleFavoriteWord } = useWords();
+  const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
+  const requestedLevelsRef = useRef<Set<LevelCode>>(new Set());
+
+  useEffect(() => {
+    const levelsToRequest = new Set<LevelCode>();
+    knownWords.forEach((item) => levelsToRequest.add(item.level));
+    favorites.forEach((item) => levelsToRequest.add(item.level));
+
+    levelsToRequest.forEach((level) => {
+      if (requestedLevelsRef.current.has(level)) {
+        return;
+      }
+      requestedLevelsRef.current.add(level);
+      loadLevelWords(level).catch(() => undefined);
+    });
+  }, [knownWords, favorites, loadLevelWords]);
+
+  const buildWordCardItem = useCallback(
+    (progress: WordProgress): WordCardItem | null => {
+      const levelWords = wordsByLevel[progress.level] ?? [];
+      const entry = levelWords.find((w) => w.id === progress.wordId);
+      if (!entry) {
+        return null;
+      }
+
+      const example =
+        (progress.userExampleSentence && progress.userExampleSentence.trim().length > 0
+          ? progress.userExampleSentence
+          : entry.exampleSentence) ?? undefined;
+
+      return {
+        id: entry.id,
+        term: entry.term,
+        level: entry.level,
+        meanings: entry.meanings,
+        example,
+        isFavorite: Boolean(progress.isFavorite),
+        wordEntry: entry,
+        progress,
+      };
+    },
+    [wordsByLevel],
+  );
+
+  const knownItems = useMemo(() => {
+    const items = knownWords.map(buildWordCardItem).filter(Boolean) as WordCardItem[];
+    return items.sort(compareByLastReview);
+  }, [knownWords, buildWordCardItem]);
+
+  const favoriteItems = useMemo(() => {
+    const items = favorites.map(buildWordCardItem).filter(Boolean) as WordCardItem[];
+    return items.sort(compareByLastReview);
+  }, [favorites, buildWordCardItem]);
+
+  const baseItems = activeTab === 'favorites' ? favoriteItems : knownItems;
+  const progressSource = activeTab === 'favorites' ? favorites : knownWords;
 
   // Filter words based on active tab
-  const filteredByTab = useMemo(() => {
-    if (activeTab === 'favorites') {
-      return words.filter((w) => w.isFavorite);
-    }
-    return words; // Bildiklerim shows all known words
-  }, [activeTab, words]);
-
-  // Filter by search query
   const data = useMemo(() => {
     if (!searchQuery.trim()) {
-      return filteredByTab;
+      return baseItems;
     }
-    const query = searchQuery.toLowerCase();
-    return filteredByTab.filter(
+    const query = searchQuery.toLocaleLowerCase('tr-TR');
+    return baseItems.filter(
       (word) =>
-        word.term.toLowerCase().includes(query) ||
-        word.meanings.some((m) => m.toLowerCase().includes(query)),
+        word.term.toLocaleLowerCase('tr-TR').includes(query) ||
+        word.meanings.some((m) => m.toLocaleLowerCase('tr-TR').includes(query)),
     );
-  }, [filteredByTab, searchQuery]);
+  }, [baseItems, searchQuery]);
 
   const handleTabChange = (key: string) => {
     setActiveTab(key as 'known' | 'favorites');
     setSearchQuery(''); // Clear search on tab change
   };
 
-  const toggleFavorite = (id: string) => {
-    setWords((prev) => prev.map((w) => (w.id === id ? { ...w, isFavorite: !w.isFavorite } : w)));
-  };
+  const handleToggleFavorite = useCallback(
+    async (item: WordCardItem) => {
+      try {
+        await toggleFavoriteWord(item.wordEntry, !item.isFavorite);
+      } catch (error) {
+        console.warn('Favori güncellenemedi:', error);
+      }
+    },
+    [toggleFavoriteWord],
+  );
 
-  const favoriteCount = words.filter((w) => w.isFavorite).length;
-  const knownCount = words.length;
+  const handleEditExample = useCallback(
+    (item: WordCardItem) => {
+      navigation.navigate('WordExampleEdit', {
+        level: item.level,
+        wordId: item.id,
+      });
+    },
+    [navigation],
+  );
+
+  const favoriteCount = favorites.length;
+  const knownCount = knownWords.length;
+  const unresolvedCount = Math.max(progressSource.length - baseItems.length, 0);
+  const isLoadingWords = progressSource.length > 0 && unresolvedCount > 0;
+  const isSearching = Boolean(searchQuery.trim());
 
   return (
     <GradientBackground>
-      <ScreenContainer>
+      <ScreenContainer style={styles.container} edges={['top', 'left', 'right']}>
         <View style={styles.header}>
           <Text style={styles.title}>Kelimelerim</Text>
           <Text style={styles.subtitle}>
@@ -191,40 +198,67 @@ export const WordsScreen: React.FC = () => {
                 <View style={styles.textColumn}>
                   <View style={styles.rowHeader}>
                     <Text style={styles.word}>{item.term}</Text>
-                    <View style={styles.levelPill}>
+                    <LinearGradient
+                      colors={LEVEL_GRADIENTS[item.level]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.levelPill}
+                    >
                       <Text style={styles.levelText}>{item.level}</Text>
-                    </View>
+                    </LinearGradient>
                   </View>
                   <Text style={styles.meanings}>{item.meanings.join(', ')}</Text>
                   {item.example ? <Text style={styles.example}>{item.example}</Text> : null}
                 </View>
-                {/* Favorite Icon - tappable */}
-                <TouchableOpacity onPress={() => toggleFavorite(item.id)} style={styles.favoriteButton}>
-                  <Ionicons
-                    name={item.isFavorite ? 'heart' : 'heart-outline'}
-                    size={24}
-                    color={item.isFavorite ? colors.accent : colors.textSecondary}
-                  />
-                </TouchableOpacity>
+                <View style={styles.actionColumn}>
+                  <TouchableOpacity
+                    onPress={() => handleToggleFavorite(item)}
+                    style={styles.actionButton}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={item.isFavorite ? 'heart' : 'heart-outline'}
+                      size={24}
+                      color={item.isFavorite ? colors.accent : colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleEditExample(item)}
+                    style={styles.actionButton}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="create-outline"
+                      size={22}
+                      color={item.progress.userExampleSentence?.trim()
+                        ? colors.accent
+                        : colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           )}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>
-                {searchQuery.trim()
-                  ? 'Aradığın kelime bulunamadı'
-                  : activeTab === 'favorites'
-                    ? 'Henüz favori eklemedin'
-                    : 'Henüz kelime öğrenmedin'}
+                {isLoadingWords
+                  ? 'Kelimeler yükleniyor...'
+                  : isSearching
+                    ? 'Aradığın kelime bulunamadı'
+                    : activeTab === 'favorites'
+                      ? 'Henüz favori eklemedin'
+                      : 'Henüz kelime öğrenmedin'}
               </Text>
-              <Text style={styles.emptyBody}>
-                {searchQuery.trim()
-                  ? 'Farklı bir kelime dene.'
-                  : activeTab === 'favorites'
-                    ? 'Bildiklerim sekmesinden kalp ikonuna basarak favorilere ekleyebilirsin.'
-                    : 'Seviyeleri keşfet ve kelime öğrenmeye başla.'}
-              </Text>
+              {!isLoadingWords ? (
+                <Text style={styles.emptyBody}>
+                  {isSearching
+                    ? 'Farklı bir kelime dene.'
+                    : activeTab === 'favorites'
+                      ? 'Bildiklerim sekmesinden kalp ikonuna basarak favorilere ekleyebilirsin.'
+                      : 'Seviyeleri keşfet ve kelime öğrenmeye başla.'}
+                </Text>
+              ) : null}
             </View>
           }
           showsVerticalScrollIndicator={false}
@@ -235,6 +269,9 @@ export const WordsScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  container: {
+    paddingBottom: 0,
+  },
   header: {
     marginBottom: spacing.lg,
   },
@@ -294,7 +331,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs / 2,
   },
   list: {
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.lg,
     paddingTop: spacing.md,
   },
   separator: {
@@ -332,15 +369,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   levelPill: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: radius.md,
+    borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs / 1.2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   levelText: {
     ...typography.caption,
     color: colors.textPrimary,
     letterSpacing: 0.6,
+    fontWeight: '600',
   },
   meanings: {
     ...typography.body,
@@ -351,9 +390,14 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontStyle: 'italic',
   },
-  favoriteButton: {
+  actionColumn: {
+    alignItems: 'flex-end',
+    gap: spacing.sm,
+  },
+  actionButton: {
     padding: spacing.xs,
-    alignSelf: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyState: {
     padding: spacing.lg,
