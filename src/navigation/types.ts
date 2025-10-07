@@ -4,6 +4,7 @@ export type AppStackParamList = {
   Tabs: undefined;
   LevelDetail: { level: string; index?: number };
   AdminWordManager: undefined;
+  AdminPanel: undefined;
   Login: undefined;
   Register: undefined;
   WordExampleEdit: { level: LevelCode; wordId: string };

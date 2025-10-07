@@ -14,6 +14,7 @@ import { WordsScreen } from '../screens/words/WordsScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { LevelDetailScreen } from '../screens/levels/LevelDetailScreen';
 import { AdminWordScreen } from '../screens/admin/AdminWordScreen';
+import { AdminPanelScreen } from '../screens/admin/AdminPanelScreen';
 import { EditExampleScreen } from '../screens/words/EditExampleScreen';
 
 const AppStack = createNativeStackNavigator<AppStackParamList>();
@@ -80,8 +81,9 @@ export const AppNavigator = () => {
     <NavigationContainer theme={navigationTheme}>
       <AppStack.Navigator screenOptions={{ headerShown: false }}>
         <AppStack.Screen name="Tabs" component={TabNavigator} />
-        <AppStack.Screen name="LevelDetail" component={LevelDetailScreen} />
-  <AppStack.Screen name="WordExampleEdit" component={EditExampleScreen} />
+    <AppStack.Screen name="LevelDetail" component={LevelDetailScreen} />
+    <AppStack.Screen name="WordExampleEdit" component={EditExampleScreen} />
+    <AppStack.Screen name="AdminPanel" component={AdminPanelScreen} />
         <AppStack.Screen name="AdminWordManager" component={AdminWordScreen} />
         <AppStack.Screen
           name="Login"

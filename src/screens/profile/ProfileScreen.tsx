@@ -11,6 +11,7 @@ import { useWords } from '@/context/WordContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppStackParamList } from '@/navigation/types';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export const ProfileScreen: React.FC = () => {
   const { profile, signOut, firebaseUser, deleteAccount, loading } = useAuth();
@@ -25,6 +26,34 @@ export const ProfileScreen: React.FC = () => {
     ],
     [favorites.length, knownWords.length],
   );
+
+  const displayName = useMemo(() => {
+    const fullName = `${profile?.firstName ?? ''} ${profile?.lastName ?? ''}`.trim();
+    if (fullName.length > 0) {
+      return fullName;
+    }
+    return profile?.email ?? firebaseUser?.email ?? 'Misafir Kullanıcı';
+  }, [profile?.firstName, profile?.lastName, profile?.email, firebaseUser?.email]);
+
+  const displayEmail = useMemo(
+    () => profile?.email ?? firebaseUser?.email ?? 'Giriş yapmadın',
+    [profile?.email, firebaseUser?.email],
+  );
+
+  const initials = useMemo(() => {
+    const matches = displayName.match(/\b[\p{L}\p{N}]/gu);
+    if (matches && matches.length > 0) {
+      return matches.slice(0, 2).join('').toUpperCase();
+    }
+    if (displayEmail.length > 0) {
+      return displayEmail.charAt(0).toUpperCase();
+    }
+    return 'K';
+  }, [displayName, displayEmail]);
+
+  const headerTagline = isAuthenticated
+    ? 'Öğrenme yolculuğun burada devam ediyor.'
+    : 'İlerlemeni kaydetmek için giriş yap.';
 
   const onLogout = async () => {
     if (!isAuthenticated) return;
@@ -65,49 +94,52 @@ export const ProfileScreen: React.FC = () => {
   };
 
   return (
-    <GradientBackground paddingTop={spacing.md}>
-      <ScreenContainer edges={['left', 'right']}>
+    <GradientBackground paddingTop={spacing.xl}>
+      <ScreenContainer style={styles.container} edges={['top', 'left', 'right']}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <Text style={styles.title}>Profilim</Text>
+          <LinearGradient
+            colors={['rgba(123, 97, 255, 0.35)', 'rgba(90, 227, 180, 0.18)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.headerCard}
+          >
+            <Text style={styles.headerTitle}>Profil</Text>
+            <View style={styles.headerRow}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials}</Text>
+              </View>
+              <View style={styles.headerInfo}>
+                <Text style={styles.headerName}>{displayName}</Text>
+                <Text style={styles.headerEmail}>{displayEmail}</Text>
+                <Text style={styles.headerTagline}>{headerTagline}</Text>
+              </View>
+            </View>
+            <View style={styles.headerStatsRow}>
+              {stats.map((item) => (
+                <View style={styles.statCard} key={item.label}>
+                  <Text style={styles.statValue}>{item.value}</Text>
+                  <Text style={styles.statLabel}>{item.label}</Text>
+                </View>
+              ))}
+            </View>
+          </LinearGradient>
+
           {isAuthenticated ? (
             <>
-              <Text style={styles.subtitle}>
-                {profile?.firstName} {profile?.lastName}
-              </Text>
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Hesap Bilgileri</Text>
-                <View style={styles.infoRow}>
-                  <Text style={styles.label}>E-posta</Text>
-                  <Text style={styles.value}>{profile?.email ?? firebaseUser?.email}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.label}>Rol</Text>
-                  <Text style={styles.value}>{profile?.role ?? 'member'}</Text>
-                </View>
-                <View style={styles.pillRow}>
-                  <CreditPill label="Krediler" value={profile?.dailyCredits ?? 0} />
-                  <CreditPill label="Yıldız" value={profile?.dailyHintTokens ?? 0} />
-                </View>
-              </View>
-
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>İstatistikler</Text>
-                {stats.map((item) => (
-                  <View style={styles.infoRow} key={item.label}>
-                    <Text style={styles.label}>{item.label}</Text>
-                    <Text style={styles.value}>{item.value}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <PrimaryButton label="Çıkış Yap" onPress={onLogout} variant="danger" />
+              <PrimaryButton
+                label="Çıkış Yap"
+                onPress={onLogout}
+                variant="danger"
+                size="compact"
+                style={styles.compactButton}
+              />
 
               {profile?.role === 'admin' ? (
                 <PrimaryButton
-                  label="Kelime Yönetimi"
-                  onPress={onAdminPress}
-                  variant="secondary"
-                  style={styles.adminButton}
+                  label="Admin"
+                  onPress={() => navigation.navigate('AdminPanel')}
+                  variant="ghost"
+                  size="compact"
                 />
               ) : null}
 
@@ -128,7 +160,7 @@ export const ProfileScreen: React.FC = () => {
           ) : (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Misafir Modu</Text>
-              <Text style={styles.guestText}>
+              <Text style={styles.sectionDescription}>
                 Giriş yapmadan seviyeleri keşfedebilirsin. İlerlemeni kaydetmek ve cihazlar arasında senkronize etmek için giriş yap veya kayıt ol.
               </Text>
               <View style={styles.authButtonGroup}>
@@ -144,53 +176,133 @@ export const ProfileScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  container: {
+    paddingBottom: 0,
+  },
   scrollContent: {
-    paddingBottom: spacing.xs,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
     gap: spacing.lg,
   },
-  title: {
+  headerCard: {
+    borderRadius: spacing.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    gap: spacing.lg,
+  },
+  headerTitle: {
+    ...typography.caption,
+    color: 'rgba(255,255,255,0.75)',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(12, 18, 41, 0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    ...typography.title,
+    color: colors.textPrimary,
+  },
+  headerInfo: {
+    flex: 1,
+    gap: spacing.xs / 2,
+  },
+  headerName: {
     ...typography.headline,
     color: colors.textPrimary,
   },
-  subtitle: {
-    ...typography.subtitle,
+  headerEmail: {
+    ...typography.caption,
     color: colors.textSecondary,
   },
-  section: {
-    backgroundColor: colors.card,
+  headerTagline: {
+    ...typography.caption,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  headerStatsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  statCard: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
     borderRadius: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(12, 18, 41, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statValue: {
+    ...typography.headline,
+    color: colors.textPrimary,
+  },
+  statLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: spacing.xs / 2,
+    textAlign: 'center',
+  },
+  section: {
+    backgroundColor: 'rgba(12, 18, 41, 0.55)',
+    borderRadius: spacing.xl,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.sm,
+    borderColor: 'rgba(255,255,255,0.12)',
+    gap: spacing.md,
   },
   sectionTitle: {
     ...typography.title,
     color: colors.textPrimary,
   },
+  sectionDescription: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
   infoRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   label: {
-    ...typography.body,
+    ...typography.caption,
     color: colors.textSecondary,
   },
   value: {
     ...typography.subtitle,
     color: colors.textPrimary,
   },
+  statList: {
+    gap: spacing.sm,
+  },
   pillRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  compactButton: {
     marginTop: spacing.sm,
-  },
-  adminButton: {
-    marginTop: spacing.md,
-  },
-  guestText: {
-    ...typography.body,
-    color: colors.textSecondary,
   },
   authButtonGroup: {
     gap: spacing.sm,
@@ -199,10 +311,10 @@ const styles = StyleSheet.create({
   deleteSection: {
     gap: spacing.sm,
     padding: spacing.lg,
-    borderRadius: spacing.lg,
+    borderRadius: spacing.xl,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: 'rgba(255, 107, 107, 0.35)',
+    backgroundColor: 'rgba(255, 107, 107, 0.08)',
   },
   deleteTitle: {
     ...typography.title,

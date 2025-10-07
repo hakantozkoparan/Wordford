@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { GradientBackground } from '@/components/GradientBackground';
 import { ScreenContainer } from '@/components/ScreenContainer';
@@ -88,13 +89,18 @@ export const EditExampleScreen: React.FC<Props> = ({ route, navigation }) => {
   };
 
   return (
-    <GradientBackground>
+    <GradientBackground paddingTop={spacing.md}>
       <ScreenContainer style={styles.container} edges={['top', 'left', 'right']}>
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.topBar}>
+            <TouchableOpacity onPress={navigation.goBack} style={styles.backButton} accessibilityRole="button">
+              <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
           <View style={styles.header}>
             <Text style={styles.title}>{word?.term ?? 'Örnek Cümle'}</Text>
             <Text style={styles.subtitle}>
@@ -154,8 +160,23 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
   content: {
-    paddingVertical: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
     gap: spacing.lg,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(12, 18, 41, 0.55)',
   },
   header: {
     gap: spacing.sm,
