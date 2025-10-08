@@ -75,6 +75,10 @@ export const ProfileScreen: React.FC = () => {
     navigation.navigate('Register');
   };
 
+  const onContactPress = () => {
+    navigation.navigate('Contact');
+  };
+
   const confirmDeleteAccount = () => {
     Alert.alert(
       'Hesabı Sil',
@@ -134,6 +138,15 @@ export const ProfileScreen: React.FC = () => {
           {isAuthenticated ? (
             <>
               <PrimaryButton
+                label="İletişim"
+                onPress={onContactPress}
+                variant="secondary"
+                size="compact"
+                style={styles.compactButton}
+                icon="mail-outline"
+                iconColor={colors.accent}
+              />
+              <PrimaryButton
                 label="Çıkış Yap"
                 onPress={onLogout}
                 variant="danger"
@@ -170,6 +183,13 @@ export const ProfileScreen: React.FC = () => {
               <Text style={styles.sectionDescription}>
                 Giriş yapmadan seviyeleri keşfedebilirsin. İlerlemeni kaydetmek ve cihazlar arasında senkronize etmek için giriş yap veya kayıt ol.
               </Text>
+              <PrimaryButton
+                label="İletişim"
+                onPress={onContactPress}
+                variant="ghost"
+                icon="mail-outline"
+                iconColor={colors.textSecondary}
+              />
               <View style={styles.authButtonGroup}>
                 <PrimaryButton label="Giriş Yap" onPress={onLoginPress} />
                 <PrimaryButton label="Kayıt Ol" onPress={onRegisterPress} variant="secondary" />

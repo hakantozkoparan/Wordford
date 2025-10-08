@@ -5,9 +5,11 @@ export type AppStackParamList = {
   LevelDetail: { level: string; index?: number };
   AdminWordManager: undefined;
   AdminPanel: undefined;
+  AdminContactRequests: undefined;
   Login: undefined;
   Register: undefined;
   WordExampleEdit: { level: LevelCode; wordId: string };
+  Contact: undefined;
 };
 
 export type TabsParamList = {

@@ -129,3 +129,20 @@ export interface PurchasePackageIds {
   creditsProductId: string;
   adFreeProductId: string;
 }
+
+export type ContactRequestStatus = 'open' | 'resolved';
+
+export interface ContactRequest {
+  id: string;
+  userId?: string | null;
+  email: string;
+  fullName?: string | null;
+  subject: string;
+  message: string;
+  status: ContactRequestStatus;
+  createdAt: Timestamp | null;
+  updatedAt?: Timestamp | null;
+  resolvedAt?: Timestamp | null;
+  appVersion?: string | null;
+  deviceId?: string | null;
+}

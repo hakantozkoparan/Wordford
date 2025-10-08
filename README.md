@@ -10,6 +10,7 @@ Modern ve oyunlaştırılmış bir İngilizce kelime öğrenme uygulaması. Expo
 - **İlerleme takibi** (mastered/in-progress) ve toplam başarı yüzdeleri
 - **Reklam araları için sayaç** (placeholder) ve RevenueCat üzerinden enerji/ad-free satın alma akışları (konfigürasyon gerekli)
 - **Yönetici araçları** ile kelime ekleme ve kullanıcılara bonus enerji/"cevabı göster" hakları tanımlama
+- **İletişim formu ve yönetimi**; profil ekranından captcha korumalı mesaj gönderme, admin panelinden talepleri görüntüleme ve statü güncelleme
 - **Tema ve bileşen kütüphanesi** ile tutarlı görsel stil
 
 ## 📁 Proje Yapısı
@@ -102,6 +103,12 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if isAdmin();
     }
+
+    match /contactRequests/{requestId} {
+      allow create: if request.resource.data.status == 'open';
+      allow read, update: if isAdmin();
+      allow delete: if false;
+    }
   }
 }
 ```
@@ -122,6 +129,13 @@ service cloud.firestore {
 - `creditService.ensureDailyResources` her oturumda kullanıcıya günlük enerji ve "cevabı göster" haklarını Firebase sunucu saatiyle senkronize şekilde tanımlar.
 - `progressService.recordAnswerResult` doğru/yanlış cevapları deneme sayısı ve durum olarak işler.
 - `AuthContext` ve `WordContext` gerekli servisleri tek noktadan sağlar.
+
+## 📬 İletişim Talepleri
+- Profil ekranındaki **“İletişim”** butonu, captcha doğrulamalı form ile `contactRequests` koleksiyonuna kayıt ekler.
+- Kayıtlı kullanıcı bilgilerinden e-posta ve ad otomatik doldurulur; misafir kullanıcılar manuel girebilir.
+- Admin panelinde yer alan **“Destek Kutusu”** kısayolu, `AdminContactRequestsScreen` üzerinden talepleri listeler, durumlarını **açık/çözüldü** olarak günceller.
+- `contactService.ts` istemci tarafı Firestore işlemlerini kapsüller. Gerekirse ek alanlar (cihaz bilgisi, uygulama sürümü vb.) aynı servis üzerinden gönderilebilir.
+- Firestore kurallarına uygun olarak yalnızca yöneticiler talepleri okuyabilir/güncelleyebilir; herkes yeni talep oluşturabilir.
 
 ## 🧪 Doğrulama
 Hızlı tip kontrolü:

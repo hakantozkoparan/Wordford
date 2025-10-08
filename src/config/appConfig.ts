@@ -13,6 +13,7 @@ export const FIREBASE_COLLECTIONS = {
   wordLevels: 'levels',
   words: 'words',
   progress: 'progress',
+  contactRequests: 'contactRequests',
 };
 
 export const STORAGE_KEYS = {

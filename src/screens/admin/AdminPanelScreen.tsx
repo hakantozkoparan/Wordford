@@ -135,6 +135,21 @@ export const AdminPanelScreen: React.FC<Props> = ({ navigation }) => {
           </View>
 
           <View style={styles.section}>
+            <Text style={styles.sectionTitle}>İletişim Talepleri</Text>
+            <Text style={styles.sectionDescription}>
+              Kullanıcıların gönderdiği mesajları görüntüle, durumlarını yönet ve geri dönüşleri takip et.
+            </Text>
+            <PrimaryButton
+              label="Destek Kutusu"
+              onPress={() => navigation.navigate('AdminContactRequests')}
+              variant="ghost"
+              size="compact"
+              icon="mail-unread"
+              iconColor={colors.accent}
+            />
+          </View>
+
+          <View style={styles.section}>
             <Text style={styles.sectionTitle}>Enerji & Cevabı Göster Hakları</Text>
             <Text style={styles.sectionDescription}>
               Admin bonusları günlük sıfırlamalardan etkilenmez. Pozitif değerler girerek kullanıcıya ek hak tanımlayabilirsin.
