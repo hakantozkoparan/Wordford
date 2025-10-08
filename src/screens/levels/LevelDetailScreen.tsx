@@ -36,7 +36,7 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     recordAnswer,
     saveExampleSentence,
   } = useWords();
-  const { profile, spendCredit, spendHintToken } = useAuth();
+  const { profile, spendEnergy, spendRevealToken } = useAuth();
   const [index, setIndex] = useState(route.params.index ?? 0);
   const [revealed, setRevealed] = useState(false);
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
@@ -72,6 +72,11 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const showErrorCard = Boolean(error);
   const showFavoriteAction = feedback === 'correct';
   const showRevealAction = feedback !== 'correct';
+  const totalEnergy = Math.max((profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0), 0);
+  const totalRevealTokens = Math.max(
+    (profile?.dailyRevealTokens ?? 0) + (profile?.bonusRevealTokens ?? 0),
+    0,
+  );
 
   useEffect(() => {
     if (words.length === 0) {
@@ -148,28 +153,50 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const handleAnswer = handleSubmit(async ({ answer }) => {
     if (!word) return;
+
     const trimmed = answer.toLocaleLowerCase('tr-TR').trim();
     const isCorrect = normalizedMeanings(word).includes(trimmed);
-    setFeedback(isCorrect ? 'correct' : 'incorrect');
+    const availableEnergy = (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0);
+
+    if (availableEnergy <= 0) {
+      setFeedback(null);
+      setError('Enerji hakkınız kalmadı. Cevabı kontrol edebilmek için daha fazla enerji gerekiyor.');
+      return;
+    }
+
     setError(null);
+
+    try {
+      await spendEnergy(1);
+    } catch (err) {
+      setFeedback(null);
+      setError((err as Error).message ?? 'Enerji harcanamadı.');
+      return;
+    }
+
+    setFeedback(isCorrect ? 'correct' : 'incorrect');
+
     try {
       await recordAnswer(word, isCorrect);
     } catch (err) {
       setFeedback(null);
       setError((err as Error).message ?? 'Cevap kaydedilemedi.');
-      return;
     }
   });
 
   const handleReveal = async () => {
     if (!word || revealed) return;
     try {
-      if ((profile?.dailyHintTokens ?? 0) > 0) {
-        await spendHintToken();
-      } else if ((profile?.dailyCredits ?? 0) > 0) {
-        await spendCredit(1);
+      const availableRevealTokens =
+        (profile?.dailyRevealTokens ?? 0) + (profile?.bonusRevealTokens ?? 0);
+      const availableEnergy = (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0);
+
+      if (availableRevealTokens > 0) {
+        await spendRevealToken();
+      } else if (availableEnergy > 0) {
+        await spendEnergy(1);
       } else {
-        setError('Yeterli yıldız veya krediniz yok.');
+        setError('Yeterli cevabı göster hakkınız veya enerjiniz yok.');
         return;
       }
       await markHintUsed(word);
@@ -313,6 +340,17 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                     {index + 1} / {words.length}
                   </Text>
                 </View>
+              </View>
+            </View>
+
+            <View style={styles.resourceRow}>
+              <View style={[styles.resourceItem, styles.resourceItemEnergy]}>
+                <Ionicons name="flash" size={18} color={colors.accent} />
+                <Text style={styles.resourceValue}>{totalEnergy}</Text>
+              </View>
+              <View style={[styles.resourceItem, styles.resourceItemReveal]}>
+                <Ionicons name="eye" size={18} color={colors.warning} />
+                <Text style={styles.resourceValue}>{totalRevealTokens}</Text>
               </View>
             </View>
 
@@ -591,6 +629,35 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
     fontWeight: '600',
+  },
+  resourceRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  resourceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: 'rgba(12, 20, 40, 0.6)',
+    borderRadius: radius.pill,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+  },
+  resourceItemEnergy: {
+    borderColor: 'rgba(59, 226, 176, 0.45)',
+  },
+  resourceItemReveal: {
+    borderColor: 'rgba(255, 179, 71, 0.45)',
+  },
+  resourceValue: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
   wordCardWrapper: {
     marginBottom: spacing.xs,

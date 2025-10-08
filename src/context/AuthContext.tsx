@@ -3,10 +3,10 @@ import { Alert } from 'react-native';
 import { AuthError, User, onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
 
-import { DAILY_FREE_CREDITS, DAILY_HINT_TOKENS, FIREBASE_COLLECTIONS } from '@/config/appConfig';
+import { FIREBASE_COLLECTIONS } from '@/config/appConfig';
 import { auth, db } from '@/config/firebase';
 import { deleteUserAccount, loginUser, logoutUser, parseAuthError, registerUser } from '@/services/authService';
-import { consumeCredit, consumeHintToken, ensureDailyCredits } from '@/services/creditService';
+import { consumeEnergy, consumeRevealToken, ensureDailyResources } from '@/services/creditService';
 import { updateDailyStreak } from '@/services/userStatsService';
 import { getDeviceMetadata } from '@/utils/device';
 import { UserProfile } from '@/types/models';
@@ -34,9 +34,9 @@ interface AuthContextValue {
   login: (form: LoginForm) => Promise<void>;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
-  refreshDailyCredits: () => Promise<void>;
-  spendCredit: (amount?: number) => Promise<void>;
-  spendHintToken: () => Promise<void>;
+  refreshDailyResources: () => Promise<void>;
+  spendEnergy: (amount?: number) => Promise<void>;
+  spendRevealToken: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       const data = snapshot.data() as UserProfile;
       setProfile(data);
-      await ensureDailyCredits(firebaseUser.uid);
+      await ensureDailyResources(firebaseUser.uid);
     });
 
     return unsubscribe;
@@ -195,22 +195,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [firebaseUser]);
 
-  const refreshDailyCredits = useCallback(async () => {
+  const refreshDailyResources = useCallback(async () => {
     if (!firebaseUser) return;
-    await ensureDailyCredits(firebaseUser.uid);
+    await ensureDailyResources(firebaseUser.uid);
   }, [firebaseUser]);
 
-  const spendCredit = useCallback(
+  const spendEnergy = useCallback(
     async (amount = 1) => {
       if (!firebaseUser) return;
-      await consumeCredit(firebaseUser.uid, amount);
+      await consumeEnergy(firebaseUser.uid, amount);
     },
     [firebaseUser],
   );
 
-  const spendHintToken = useCallback(async () => {
+  const spendRevealToken = useCallback(async () => {
     if (!firebaseUser) return;
-    await consumeHintToken(firebaseUser.uid);
+    await consumeRevealToken(firebaseUser.uid);
   }, [firebaseUser]);
 
   const value = useMemo(
@@ -224,11 +224,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       login,
       signOut,
       deleteAccount,
-      refreshDailyCredits,
-      spendCredit,
-      spendHintToken,
+      refreshDailyResources,
+      spendEnergy,
+      spendRevealToken,
     }),
-    [firebaseUser, profile, initializing, loading, error, register, login, signOut, deleteAccount, refreshDailyCredits, spendCredit, spendHintToken],
+    [firebaseUser, profile, initializing, loading, error, register, login, signOut, deleteAccount, refreshDailyResources, spendEnergy, spendRevealToken],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

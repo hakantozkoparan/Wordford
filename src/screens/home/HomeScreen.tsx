@@ -7,10 +7,10 @@ import { isSameDay } from 'date-fns';
 
 import { GradientBackground } from '@/components/GradientBackground';
 import { ScreenContainer } from '@/components/ScreenContainer';
-import { LevelCard, IoniconName } from '@/components/LevelCard';
-import { CreditPill } from '@/components/CreditPill';
+import { LevelCard } from '@/components/LevelCard';
+import { ResourcePill } from '@/components/ResourcePill';
 import { ProgressBar } from '@/components/ProgressBar';
-import { colors, spacing, typography } from '@/theme';
+import { colors, radius, spacing, typography } from '@/theme';
 import { LEVEL_CODES, LEVEL_LABELS, TOTAL_WORD_COUNT, WORDS_PER_LEVEL } from '@/constants/levels';
 import { LEVEL_GRADIENTS, LEVEL_ICONS } from '@/constants/levelThemes';
 import { useAuth } from '@/context/AuthContext';
@@ -62,6 +62,10 @@ export const HomeScreen: React.FC = () => {
   const totalWords = totalWordsAcrossLevels > 0 ? totalWordsAcrossLevels : TOTAL_WORD_COUNT;
   const totalProgress = totalWords === 0 ? 0 : masteredCount / totalWords;
 
+  const availableEnergy = (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0);
+  const availableRevealTokens =
+    (profile?.dailyRevealTokens ?? 0) + (profile?.bonusRevealTokens ?? 0);
+
   const todaysMasteredFromProgress = useMemo(() => {
     const today = new Date();
     return Object.values(progressMap).reduce((count, item) => {
@@ -107,15 +111,9 @@ export const HomeScreen: React.FC = () => {
               style={styles.heroGradient}
             >
               <View style={styles.heroContent}>
-                <View style={styles.heroHeader}>
-                  <View style={styles.heroTextGroup}>
-                    <Text style={styles.greeting}>Hoş geldin, {profile?.firstName ?? 'Misafir'} 👋</Text>
-                    <Text style={styles.heroSubtitle}>Bugün hangi kelimeleri öğreneceksin?</Text>
-                  </View>
-                  <View style={styles.heroPills}>
-                    <CreditPill label="Krediler" value={profile?.dailyCredits ?? 0} />
-                    <CreditPill label="Yıldız" value={profile?.dailyHintTokens ?? 0} />
-                  </View>
+                <View style={styles.heroTextGroup}>
+                  <Text style={styles.greeting}>Hoş geldin, {profile?.firstName ?? 'Misafir'} 👋</Text>
+                  <Text style={styles.heroSubtitle}>Bugün hangi kelimeleri öğreneceksin?</Text>
                 </View>
 
                 <View style={styles.heroStatsRow}>
@@ -152,6 +150,11 @@ export const HomeScreen: React.FC = () => {
                       {formattedFavorites}
                     </Text>
                   </View>
+                </View>
+
+                <View style={styles.heroResources}>
+                  <ResourcePill label="Enerji" value={availableEnergy} icon="flash" />
+                  <ResourcePill label="Cevabı Göster" value={availableRevealTokens} icon="eye" />
                 </View>
               </View>
             </LinearGradient>
@@ -219,17 +222,11 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   heroContent: {
-    gap: spacing.sm,
-  },
-  heroHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    gap: spacing.md,
   },
   heroTextGroup: {
-    flex: 1,
-    paddingRight: spacing.lg,
     gap: spacing.xs,
+    alignItems: 'flex-start',
   },
   greeting: {
     ...typography.headline,
@@ -239,14 +236,10 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
   },
-  heroPills: {
-    gap: spacing.sm,
-  },
   heroStatsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.sm,
-    marginTop: spacing.md,
   },
   heroStat: {
     flex: 1,
@@ -295,6 +288,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     minWidth: 0,
     textAlign: 'center',
+  },
+  heroResources: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+    alignSelf: 'center',
+    marginTop: spacing.xs,
   },
   progressCard: {
     backgroundColor: colors.card,

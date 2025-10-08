@@ -47,10 +47,12 @@ export interface UserProfile {
   deviceId: string;
   createdAt: Timestamp | null;
   updatedAt?: Timestamp | null;
-  dailyCredits: number;
-  dailyHintTokens: number;
-  lastCreditRefresh?: Timestamp | null;
-  lastHintRefresh?: Timestamp | null;
+  dailyEnergy: number;
+  dailyRevealTokens: number;
+  bonusEnergy?: number;
+  bonusRevealTokens?: number;
+  lastEnergyRefresh?: Timestamp | null;
+  lastRevealRefresh?: Timestamp | null;
   subscriptionTier: SubscriptionTier;
   hasAdFree: boolean;
   lastLoginAt?: Timestamp | null;
@@ -105,16 +107,21 @@ export interface CaptchaChallenge {
   solution: number;
 }
 
-export interface CreditTransaction {
+export type ResourceType = 'energy' | 'reveal';
+
+export type ResourceTransactionReason =
+  | 'dailyRefresh'
+  | 'consumption'
+  | 'adminGrant'
+  | 'purchase'
+  | 'manualAdjust';
+
+export interface ResourceTransaction {
   id: string;
   userId: string;
+  resource: ResourceType;
   delta: number;
-  reason:
-    | 'dailyRefresh'
-    | 'hintReveal'
-    | 'purchase'
-    | 'adminGrant'
-    | 'manualAdjust';
+  reason: ResourceTransactionReason;
   createdAt: Timestamp | null;
 }
 

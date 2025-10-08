@@ -1,15 +1,15 @@
 # Wordford
 
-Modern ve oyunlaştırılmış bir İngilizce kelime öğrenme uygulaması. Expo + React Native + TypeScript üzerinde kurulmuştur ve Firebase, RevenueCat ile günlük kredi/yıldız sistemi, captcha ve cihaz güvenliği gibi özellikleri destekler.
+Modern ve oyunlaştırılmış bir İngilizce kelime öğrenme uygulaması. Expo + React Native + TypeScript üzerinde kurulmuştur ve Firebase, RevenueCat ile günlük enerji ve "cevabı göster" sistemi, captcha ve cihaz güvenliği gibi özellikleri destekler.
 
 ## ✨ Özellikler
 - **E-posta/Şifre ile üyelik** ve kayıt sırasında cihaz güvenliği + captcha kontrolü
 - **Cihaz başına kayıt ve giriş limiti** ile brute force engelleme
-- **Günlük ücretsiz krediler ve yıldızlar**; ipucu kullanımı veya kelime açmak için tüketilir
+- **Günlük enerji ve cevabı göster hakları**; cevap gösterme veya ekstra deneme için tüketilir, bonuslar günlük sıfırlamadan etkilenmez
 - **Seviye bazlı kelime kartları** (A1–C2), favorileme ve öğrenilen kelimeleri işaretleme
 - **İlerleme takibi** (mastered/in-progress) ve toplam başarı yüzdeleri
-- **Reklam araları için sayaç** (placeholder) ve RevenueCat üzerinden kredi/ad-free satın alma akışları (konfigürasyon gerekli)
-- **Yönetici kelime paneli** ile seviyelere kelime ekleme
+- **Reklam araları için sayaç** (placeholder) ve RevenueCat üzerinden enerji/ad-free satın alma akışları (konfigürasyon gerekli)
+- **Yönetici araçları** ile kelime ekleme ve kullanıcılara bonus enerji/"cevabı göster" hakları tanımlama
 - **Tema ve bileşen kütüphanesi** ile tutarlı görsel stil
 
 ## 📁 Proje Yapısı
@@ -22,7 +22,7 @@ src/
   data/            // Örnek kelime verisi
   navigation/      // Stack & Tab gezinti yapılandırmaları
   screens/         // Auth, Home, Level, Profile, Admin ekranları
-  services/        // Firebase işlemleri, kredi, güvenlik, RevenueCat servisleri
+  services/        // Firebase işlemleri, enerji/cevap hakları, güvenlik, RevenueCat servisleri
   theme/           // Renkler, tipografi, spacing
   utils/           // Captcha, tarih, cihaz yardımcıları
 ```
@@ -83,7 +83,7 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
-    match /creditTransactions/{docId} {
+    match /resourceTransactions/{docId} {
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow update, delete: if false;
@@ -118,8 +118,8 @@ service cloud.firestore {
 ## 📱 Reklam Entegrasyonu
 `src/services/adService.ts` şu anda yalnızca placeholder log üretir. AdMob veya tercih ettiğiniz sağlayıcıdan interstitial reklam gösterimi eklemek için `showInterstitialAd` fonksiyonunu güncelleyin.
 
-## 🔄 Günlük Krediler & İlerleme
-- `creditService.ensureDailyCredits` her oturumda kullanıcıya günlük kredi/yıldız limitlerini tanımlar.
+## 🔄 Günlük Enerji & Haklar
+- `creditService.ensureDailyResources` her oturumda kullanıcıya günlük enerji ve "cevabı göster" haklarını Firebase sunucu saatiyle senkronize şekilde tanımlar.
 - `progressService.recordAnswerResult` doğru/yanlış cevapları deneme sayısı ve durum olarak işler.
 - `AuthContext` ve `WordContext` gerekli servisleri tek noktadan sağlar.
 

@@ -18,7 +18,7 @@ import {
   where,
 } from 'firebase/firestore';
 
-import { DAILY_FREE_CREDITS, DAILY_HINT_TOKENS, FIREBASE_COLLECTIONS } from '@/config/appConfig';
+import { DAILY_ENERGY_ALLOCATION, DAILY_REVEAL_TOKENS, FIREBASE_COLLECTIONS } from '@/config/appConfig';
 import { auth, db } from '@/config/firebase';
 import { DeviceMetadata, UserProfile } from '@/types/models';
 import {
@@ -68,10 +68,12 @@ export const registerUser = async (payload: RegistrationPayload) => {
     deviceId: device.deviceId,
     createdAt: null,
     updatedAt: null,
-    dailyCredits: DAILY_FREE_CREDITS,
-    dailyHintTokens: DAILY_HINT_TOKENS,
-    lastCreditRefresh: null,
-    lastHintRefresh: null,
+  dailyEnergy: DAILY_ENERGY_ALLOCATION,
+  dailyRevealTokens: DAILY_REVEAL_TOKENS,
+  bonusEnergy: 0,
+  bonusRevealTokens: 0,
+  lastEnergyRefresh: null,
+  lastRevealRefresh: null,
     subscriptionTier: 'none',
     hasAdFree: false,
     lastLoginAt: null,
@@ -99,8 +101,8 @@ export const registerUser = async (payload: RegistrationPayload) => {
     ...profile,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-    lastCreditRefresh: serverTimestamp(),
-    lastHintRefresh: serverTimestamp(),
+  lastEnergyRefresh: serverTimestamp(),
+  lastRevealRefresh: serverTimestamp(),
     lastLoginAt: serverTimestamp(),
     deviceSnapshot: device,
   });
@@ -137,7 +139,7 @@ export const deleteUserAccount = async (user: User) => {
   await Promise.all(progressSnapshot.docs.map((docSnap) => deleteDoc(docSnap.ref)));
 
   const creditQuery = query(
-    collection(db, FIREBASE_COLLECTIONS.creditTransactions),
+    collection(db, FIREBASE_COLLECTIONS.resourceTransactions),
     where('userId', '==', userId),
   );
   const creditSnapshot = await getDocs(creditQuery);

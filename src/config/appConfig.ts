@@ -1,5 +1,5 @@
-export const DAILY_FREE_CREDITS = 10;
-export const DAILY_HINT_TOKENS = 5;
+export const DAILY_ENERGY_ALLOCATION = 20;
+export const DAILY_REVEAL_TOKENS = 5;
 export const DAILY_WORD_GOAL = 10;
 export const WORDS_PER_AD_BREAK = 5;
 export const MAX_REGISTRATIONS_PER_DEVICE = 3;
@@ -9,7 +9,7 @@ export const LOGIN_LOCK_DURATION_MINUTES = 60;
 export const FIREBASE_COLLECTIONS = {
   users: 'users',
   devices: 'devices',
-  creditTransactions: 'creditTransactions',
+  resourceTransactions: 'resourceTransactions',
   wordLevels: 'levels',
   words: 'words',
   progress: 'progress',

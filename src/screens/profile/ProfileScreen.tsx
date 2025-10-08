@@ -4,7 +4,7 @@ import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { GradientBackground } from '@/components/GradientBackground';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { CreditPill } from '@/components/CreditPill';
+import { ResourcePill } from '@/components/ResourcePill';
 import { colors, spacing, typography } from '@/theme';
 import { useAuth } from '@/context/AuthContext';
 import { useWords } from '@/context/WordContext';
@@ -18,6 +18,9 @@ export const ProfileScreen: React.FC = () => {
   const { favorites, knownWords } = useWords();
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const isAuthenticated = Boolean(firebaseUser);
+
+  const totalEnergy = (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0);
+  const totalReveal = (profile?.dailyRevealTokens ?? 0) + (profile?.bonusRevealTokens ?? 0);
 
   const stats = useMemo(
     () => [
@@ -121,6 +124,10 @@ export const ProfileScreen: React.FC = () => {
                   <Text style={styles.statLabel}>{item.label}</Text>
                 </View>
               ))}
+            </View>
+            <View style={styles.resourceRow}>
+              <ResourcePill label="Enerji" value={totalEnergy} />
+              <ResourcePill label="Cevabı Göster" value={totalReveal} />
             </View>
           </LinearGradient>
 
@@ -235,6 +242,11 @@ const styles = StyleSheet.create({
   headerStatsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
+  },
+  resourceRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
   },
   statCard: {
     flex: 1,

@@ -16,7 +16,7 @@ export const purchasePackage = async (packageIds: PurchasePackageIds) => {
 
   const pack = findPackageByIdentifier(offerings, packageIds.creditsProductId);
   if (!pack) {
-    throw new Error('Kredi paketi bulunamadı.');
+  throw new Error('Enerji paketi bulunamadı.');
   }
 
   const response = await Purchases.purchasePackage(pack);
