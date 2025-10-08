@@ -1,15 +1,17 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { isSameDay } from 'date-fns';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { GradientBackground } from '@/components/GradientBackground';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { LevelCard } from '@/components/LevelCard';
 import { ResourcePill } from '@/components/ResourcePill';
 import { ProgressBar } from '@/components/ProgressBar';
+import { StreakCelebrationModal } from '@/components/StreakCelebrationModal';
 import { colors, radius, spacing, typography } from '@/theme';
 import { LEVEL_CODES, LEVEL_LABELS, TOTAL_WORD_COUNT, WORDS_PER_LEVEL } from '@/constants/levels';
 import { LEVEL_GRADIENTS, LEVEL_ICONS } from '@/constants/levelThemes';
@@ -18,8 +20,8 @@ import { useWords } from '@/context/WordContext';
 import { LevelCode, WordProgress } from '@/types/models';
 import { AppStackParamList } from '@/navigation/types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { DAILY_WORD_GOAL } from '@/config/appConfig';
-import { toDate } from '@/utils/datetime';
+import { DAILY_WORD_GOAL, STORAGE_KEYS } from '@/config/appConfig';
+import { toDate, toIsoDate } from '@/utils/datetime';
 
 const formatCompactNumber = (value: number) => {
   if (value >= 1000) {
@@ -46,12 +48,102 @@ export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const { profile } = useAuth();
   const { wordsByLevel, progressMap, loadLevelWords } = useWords();
+  const [streakModalVisible, setStreakModalVisible] = useState(false);
+  const [streakModalVariant, setStreakModalVariant] = useState<'celebration' | 'reset' | null>(null);
+  const streak = profile?.currentStreak ?? 1; // Varsayılan olarak 1
+  const normalizedStreak = Math.max(streak, 1);
 
   useEffect(() => {
     LEVEL_CODES.forEach((level) => {
       loadLevelWords(level).catch(() => undefined);
     });
   }, [loadLevelWords]);
+
+  useEffect(() => {
+    if (!profile?.uid) {
+      setStreakModalVisible(false);
+      setStreakModalVariant(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const evaluateStreak = async () => {
+      try {
+        const snapshotRaw = await AsyncStorage.getItem(STORAGE_KEYS.streakSnapshot);
+        const todayIso = toIsoDate(new Date());
+        const userId = profile.uid;
+        const currentValue = normalizedStreak;
+
+        let previousValue = 0;
+        let lastCelebrationDate: string | null = null;
+        let lastResetDate: string | null = null;
+        let storedUserId: string | null = null;
+
+        if (snapshotRaw) {
+          try {
+            const parsed = JSON.parse(snapshotRaw) as {
+              userId?: string | null;
+              streak?: number;
+              lastCelebrationDate?: string | null;
+              lastResetDate?: string | null;
+            };
+
+            storedUserId = parsed?.userId ?? null;
+            if (storedUserId === userId) {
+              previousValue = parsed?.streak ?? 0;
+              lastCelebrationDate = parsed?.lastCelebrationDate ?? null;
+              lastResetDate = parsed?.lastResetDate ?? null;
+            }
+          } catch (error) {
+            console.warn('Seri snapshot verisi çözümlenemedi:', error);
+          }
+        }
+
+        let variantToShow: 'celebration' | 'reset' | null = null;
+
+        if (storedUserId === userId) {
+          if (currentValue < previousValue && currentValue <= 1 && previousValue > 1) {
+            if (lastResetDate !== todayIso) {
+              variantToShow = 'reset';
+            }
+          } else if (currentValue > previousValue) {
+            if (lastCelebrationDate !== todayIso) {
+              variantToShow = 'celebration';
+            }
+          }
+        }
+
+        if (!cancelled) {
+          if (variantToShow) {
+            setStreakModalVariant(variantToShow);
+            setStreakModalVisible(true);
+          } else {
+            setStreakModalVisible(false);
+            setStreakModalVariant(null);
+          }
+        }
+
+        const payload = {
+          userId,
+          streak: currentValue,
+          updatedAt: new Date().toISOString(),
+          lastCelebrationDate: variantToShow === 'celebration' ? todayIso : lastCelebrationDate,
+          lastResetDate: variantToShow === 'reset' ? todayIso : lastResetDate,
+        };
+
+        await AsyncStorage.setItem(STORAGE_KEYS.streakSnapshot, JSON.stringify(payload));
+      } catch (error) {
+        console.warn('Seri durumu değerlendirilirken hata oluştu:', error);
+      }
+    };
+
+    evaluateStreak();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [normalizedStreak, profile?.uid]);
 
   const masteredCount = Object.values(progressMap).filter((item) => item.status === 'mastered').length;
   const favoriteCount = Object.values(progressMap).filter((item) => item.isFavorite).length;
@@ -92,9 +184,8 @@ export const HomeScreen: React.FC = () => {
   }, [profile]);
 
   const dailyGoal = DAILY_WORD_GOAL;
-  const streak = profile?.currentStreak ?? 1; // Varsayılan olarak 1
   const todaysMastered = todaysMasteredFromProfile ?? todaysMasteredFromProgress;
-  const formattedStreak = `${formatCompactNumber(Math.max(streak, 1))} gün`; // En az 1 gün göster
+  const formattedStreak = `${formatCompactNumber(normalizedStreak)} gün`; // En az 1 gün göster
   const formattedDailyProgress = `${formatCompactNumber(todaysMastered)}/${formatCompactNumber(dailyGoal)}`;
   const formattedFavorites = formatCompactNumber(favoriteCount);
 
@@ -199,6 +290,15 @@ export const HomeScreen: React.FC = () => {
           </View>
         </ScrollView>
       </ScreenContainer>
+      <StreakCelebrationModal
+        visible={streakModalVisible}
+        streak={normalizedStreak}
+        variant={streakModalVariant ?? 'celebration'}
+        onContinue={() => {
+          setStreakModalVisible(false);
+          setStreakModalVariant(null);
+        }}
+      />
     </GradientBackground>
   );
 };

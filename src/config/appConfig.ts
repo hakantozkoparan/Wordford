@@ -20,6 +20,7 @@ export const STORAGE_KEYS = {
   deviceId: 'wordford_device_id',
   guestProgress: 'wordford_guest_progress',
   guestStats: 'wordford_guest_stats',
+  streakSnapshot: 'wordford_streak_snapshot',
 };
 
 export const REVENUECAT_KEYS = {
