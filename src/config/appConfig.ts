@@ -21,6 +21,8 @@ export const STORAGE_KEYS = {
   guestProgress: 'wordford_guest_progress',
   guestStats: 'wordford_guest_stats',
   streakSnapshot: 'wordford_streak_snapshot',
+  notificationReminders: 'wordford_notification_reminders',
+  expoPushToken: 'wordford_expo_push_token',
 };
 
 export const REVENUECAT_KEYS = {

@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
 import { nanoid } from 'nanoid/non-secure';
@@ -7,6 +8,13 @@ import { DeviceMetadata } from '@/types/models';
 
 export const getDeviceMetadata = async (): Promise<DeviceMetadata> => {
   const deviceId = await getOrCreateDeviceId();
+  let cachedPushToken: string | null = null;
+
+  try {
+    cachedPushToken = (await AsyncStorage.getItem(STORAGE_KEYS.expoPushToken)) ?? null;
+  } catch (error) {
+    console.warn('Önbellekteki push token okunamadı:', error);
+  }
 
   return {
     deviceId,
@@ -26,6 +34,8 @@ export const getDeviceMetadata = async (): Promise<DeviceMetadata> => {
     buildNumber: null,
     locale: null,
     timezone: null,
+    pushToken: cachedPushToken,
+    pushEnabled: cachedPushToken ? true : undefined,
   };
 };
 

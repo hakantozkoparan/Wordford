@@ -10,6 +10,8 @@ Modern ve oyunlaştırılmış bir İngilizce kelime öğrenme uygulaması. Expo
 - **İlerleme takibi** (mastered/in-progress) ve toplam başarı yüzdeleri
 - **Reklam araları için sayaç** (placeholder) ve RevenueCat üzerinden enerji/ad-free satın alma akışları (konfigürasyon gerekli)
 - **Yönetici araçları** ile kelime ekleme ve kullanıcılara bonus enerji/"cevabı göster" hakları tanımlama
+- **Seri test aracı** ile yönetici panelinden kullanıcıların son giriş tarihini seçip seri artışı/sıfırlamasını simüle etme
+- **Günlük bildirim hatırlatmaları** ile 11:00 ve 19:00'da "Bugün kelime öğrenmeyecek miyiz?" temalı lokal uyarılar gönderme
 - **İletişim formu ve yönetimi**; profil ekranından captcha korumalı mesaj gönderme, admin panelinden talepleri görüntüleme ve statü güncelleme
 - **Tema ve bileşen kütüphanesi** ile tutarlı görsel stil
 
