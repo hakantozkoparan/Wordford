@@ -113,7 +113,13 @@ const requestPermissions = async (): Promise<boolean> => {
       return false;
     }
 
-    const response = await Notifications.requestPermissionsAsync();
+    const response = await Notifications.requestPermissionsAsync({
+      ios: {
+        allowAlert: true,
+        allowBadge: true,
+        allowSound: true,
+      },
+    });
     return response.status === 'granted';
   } catch (error) {
     console.warn('Bildirim izinleri alınamadı:', error);

@@ -23,6 +23,7 @@ export const STORAGE_KEYS = {
   streakSnapshot: 'wordford_streak_snapshot',
   notificationReminders: 'wordford_notification_reminders',
   expoPushToken: 'wordford_expo_push_token',
+  trackingPromptShown: 'wordford_tracking_prompt_shown',
 };
 
 export const REVENUECAT_KEYS = {

@@ -13,7 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSUserNotificationUsageDescription": "Günlük kelime hatırlatmalarını gönderebilmemiz için bildirim iznine ihtiyaç duyuyoruz.",
+        "NSUserTrackingUsageDescription": "Takip izni, reklam performansını ölçmemize ve sana daha ilgili içerikler sunmamıza yardımcı olur."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -29,7 +33,8 @@
     "plugins": [
       "expo-secure-store",
       "expo-font",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-tracking-transparency"
     ]
   }
 }
