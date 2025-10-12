@@ -35,6 +35,11 @@
       "expo-font",
       "expo-notifications",
       "expo-tracking-transparency"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0e53a0cb-513a-40df-8ecf-fa17157430f3"
+      }
+    }
   }
 }

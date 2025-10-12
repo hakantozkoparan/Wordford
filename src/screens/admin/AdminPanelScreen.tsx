@@ -150,6 +150,21 @@ export const AdminPanelScreen: React.FC<Props> = ({ navigation }) => {
           </View>
 
           <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Push Bildirimleri</Text>
+            <Text style={styles.sectionDescription}>
+              Expo Push Service üzerinden toplu bildirimler gönder.
+            </Text>
+            <PrimaryButton
+              label="Bildirim Yayını"
+              onPress={() => navigation.navigate('AdminNotifications')}
+              variant="primary"
+              size="compact"
+              icon="notifications"
+              iconColor={colors.accent}
+            />
+          </View>
+
+          <View style={styles.section}>
             <Text style={styles.sectionTitle}>Enerji & Cevabı Göster Hakları</Text>
             <Text style={styles.sectionDescription}>
               Admin bonusları günlük sıfırlamalardan etkilenmez. Pozitif değerler girerek kullanıcıya ek hak tanımlayabilirsin.

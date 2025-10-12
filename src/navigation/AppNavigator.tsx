@@ -18,6 +18,7 @@ import { AdminPanelScreen } from '../screens/admin/AdminPanelScreen';
 import { AdminContactRequestsScreen } from '../screens/admin/AdminContactRequestsScreen';
 import { EditExampleScreen } from '../screens/words/EditExampleScreen';
 import { ContactScreen } from '../screens/profile/ContactScreen';
+import { AdminNotificationScreen } from '../screens/admin/AdminNotificationScreen';
 
 const AppStack = createNativeStackNavigator<AppStackParamList>();
 const Tabs = createBottomTabNavigator<TabsParamList>();
@@ -88,6 +89,7 @@ export const AppNavigator = () => {
         <AppStack.Screen name="AdminPanel" component={AdminPanelScreen} />
         <AppStack.Screen name="AdminContactRequests" component={AdminContactRequestsScreen} />
         <AppStack.Screen name="AdminWordManager" component={AdminWordScreen} />
+  <AppStack.Screen name="AdminNotifications" component={AdminNotificationScreen} />
         <AppStack.Screen name="Contact" component={ContactScreen} />
         <AppStack.Screen
           name="Login"

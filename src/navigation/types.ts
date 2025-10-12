@@ -6,6 +6,7 @@ export type AppStackParamList = {
   AdminWordManager: undefined;
   AdminPanel: undefined;
   AdminContactRequests: undefined;
+  AdminNotifications: undefined;
   Login: undefined;
   Register: undefined;
   WordExampleEdit: { level: LevelCode; wordId: string };

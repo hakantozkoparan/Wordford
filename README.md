@@ -12,6 +12,7 @@ Modern ve oyunlaştırılmış bir İngilizce kelime öğrenme uygulaması. Expo
 - **Yönetici araçları** ile kelime ekleme ve kullanıcılara bonus enerji/"cevabı göster" hakları tanımlama
 - **Seri test aracı** ile yönetici panelinden kullanıcıların son giriş tarihini seçip seri artışı/sıfırlamasını simüle etme
 - **Günlük bildirim hatırlatmaları** ile 11:00 ve 19:00'da "Bugün kelime öğrenmeyecek miyiz?" temalı lokal uyarılar gönderme
+- **Admin push yayını** ile Expo Push Service üzerinden tüm kullanıcılara manuel duyuru gönderme
 - **İletişim formu ve yönetimi**; profil ekranından captcha korumalı mesaj gönderme, admin panelinden talepleri görüntüleme ve statü güncelleme
 - **Tema ve bileşen kütüphanesi** ile tutarlı görsel stil
 
@@ -47,6 +48,26 @@ npm install
 npm run start
 ```
 Expo QR kodu ile cihazınızda veya emülatörde uygulamayı açabilirsiniz.
+
+## 📣 Push Bildirim Yayını (Expo)
+- Yönetici panelinde **Bildirim Yayını** ekranı bulunur. Başlık, mesaj ve opsiyonel deeplink girerek Expo Push Service üzerinden toplu mesaj gönderebilirsiniz.
+- Push token'ların alınabilmesi için uygulamanın fiziksel cihazda çalışması ve `Constants.expoConfig.extra.eas.projectId` (veya EAS Build kullanıyorsanız `eas.json`) içinde proje kimliğinin tanımlı olması gerekir. Örnek yapılandırma:
+
+```jsonc
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "<EAS_PROJE_IDNIZ>"
+      }
+    }
+  }
+}
+```
+
+- Admin yayını, Firestore `users` koleksiyonunda `pushEnabled = true` ve `pushToken` alanı bulunan kayıtları otomatik olarak çeker. Aynı token birden fazla kullanıcıda olsa bile çift gönderim engellenir.
+- Expo Push API bir istekte en fazla 100 cihaza izin verdiği için istemci tarafı gönderimler 100'lük paketlere bölünerek araya kısa gecikmeler eklenir. Expo'nun dakikalık hız limiti (~600 bildirim) aşıldığında `TooManyRequests` hataları alabilirsiniz; gerekirse gönderimler arasındaki gecikmeyi artırın.
+- Hedeflenen cihaz sayısı, başarılı/başarısız gönderim toplamları ve ilk birkaç hata mesajı formun altındaki özet kartında görüntülenir. Daha detaylı inceleme için Expo Push API yanıtları (veya Sentry gibi izleme araçları) tercih edilebilir.
 
 ## 🔐 Firebase Yapılandırması
 1. `src/config/firebase.ts` içindeki `REPLACE_WITH_...` alanlarını Firebase projenizin değerleriyle güncelleyin.
