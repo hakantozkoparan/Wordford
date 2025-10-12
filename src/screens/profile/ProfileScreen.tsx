@@ -14,13 +14,17 @@ import { AppStackParamList } from '@/navigation/types';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export const ProfileScreen: React.FC = () => {
-  const { profile, signOut, firebaseUser, deleteAccount, loading } = useAuth();
+  const { profile, signOut, firebaseUser, guestResources, deleteAccount, loading } = useAuth();
   const { favorites, knownWords } = useWords();
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const isAuthenticated = Boolean(firebaseUser);
 
-  const totalEnergy = (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0);
-  const totalReveal = (profile?.dailyRevealTokens ?? 0) + (profile?.bonusRevealTokens ?? 0);
+  const totalEnergy = firebaseUser
+    ? (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0)
+    : guestResources?.dailyEnergy ?? 0;
+  const totalReveal = firebaseUser
+    ? (profile?.dailyRevealTokens ?? 0) + (profile?.bonusRevealTokens ?? 0)
+    : guestResources?.dailyRevealTokens ?? 0;
 
   const stats = useMemo(
     () => [

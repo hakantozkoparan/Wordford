@@ -20,6 +20,7 @@ export const STORAGE_KEYS = {
   deviceId: 'wordford_device_id',
   guestProgress: 'wordford_guest_progress',
   guestStats: 'wordford_guest_stats',
+  guestResources: 'wordford_guest_resources',
   streakSnapshot: 'wordford_streak_snapshot',
   notificationReminders: 'wordford_notification_reminders',
   expoPushToken: 'wordford_expo_push_token',

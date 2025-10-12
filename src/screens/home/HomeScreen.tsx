@@ -46,12 +46,14 @@ const calculateLevelProgress = (
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
-  const { profile } = useAuth();
+  const { profile, firebaseUser, guestResources, guestStats } = useAuth();
   const { wordsByLevel, progressMap, loadLevelWords } = useWords();
   const [streakModalVisible, setStreakModalVisible] = useState(false);
   const [streakModalVariant, setStreakModalVariant] = useState<'celebration' | 'reset' | null>(null);
-  const streak = profile?.currentStreak ?? 1; // Varsayılan olarak 1
-  const normalizedStreak = Math.max(streak, 1);
+  const streakValue = firebaseUser
+    ? profile?.currentStreak ?? 0
+    : guestStats?.currentStreak ?? 0;
+  const normalizedStreak = Math.max(streakValue, 1);
 
   useEffect(() => {
     LEVEL_CODES.forEach((level) => {
@@ -60,7 +62,10 @@ export const HomeScreen: React.FC = () => {
   }, [loadLevelWords]);
 
   useEffect(() => {
-    if (!profile?.uid) {
+    const trackingId = firebaseUser?.uid ?? 'guest';
+    const hasTrackingSource = firebaseUser ? Boolean(profile?.uid) : Boolean(guestStats);
+
+    if (!hasTrackingSource) {
       setStreakModalVisible(false);
       setStreakModalVariant(null);
       return;
@@ -72,7 +77,7 @@ export const HomeScreen: React.FC = () => {
       try {
         const snapshotRaw = await AsyncStorage.getItem(STORAGE_KEYS.streakSnapshot);
         const todayIso = toIsoDate(new Date());
-        const userId = profile.uid;
+        const userId = trackingId;
         const currentValue = normalizedStreak;
 
         let previousValue = 0;
@@ -154,9 +159,12 @@ export const HomeScreen: React.FC = () => {
   const totalWords = totalWordsAcrossLevels > 0 ? totalWordsAcrossLevels : TOTAL_WORD_COUNT;
   const totalProgress = totalWords === 0 ? 0 : masteredCount / totalWords;
 
-  const availableEnergy = (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0);
-  const availableRevealTokens =
-    (profile?.dailyRevealTokens ?? 0) + (profile?.bonusRevealTokens ?? 0);
+  const availableEnergy = firebaseUser
+    ? (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0)
+    : guestResources?.dailyEnergy ?? 0;
+  const availableRevealTokens = firebaseUser
+    ? (profile?.dailyRevealTokens ?? 0) + (profile?.bonusRevealTokens ?? 0)
+    : guestResources?.dailyRevealTokens ?? 0;
 
   const todaysMasteredFromProgress = useMemo(() => {
     const today = new Date();
@@ -173,18 +181,32 @@ export const HomeScreen: React.FC = () => {
   }, [progressMap]);
 
   const todaysMasteredFromProfile = useMemo(() => {
-    if (!profile) {
-      return null;
+    if (firebaseUser) {
+      if (!profile) {
+        return 0;
+      }
+      const trackedDate = toDate(profile.todaysMasteredDate ?? null);
+      if (!trackedDate) {
+        return profile.todaysMastered ?? 0;
+      }
+      return isSameDay(trackedDate, new Date()) ? profile.todaysMastered ?? 0 : 0;
     }
-    const trackedDate = toDate(profile.todaysMasteredDate ?? null);
+    if (!guestStats) {
+      return todaysMasteredFromProgress;
+    }
+    const trackedDate = toDate(guestStats.todaysMasteredDate ?? null);
     if (!trackedDate) {
-      return profile.todaysMastered ?? 0;
+      return guestStats.todaysMastered ?? todaysMasteredFromProgress;
     }
-    return isSameDay(trackedDate, new Date()) ? profile.todaysMastered ?? 0 : 0;
-  }, [profile]);
+    return isSameDay(trackedDate, new Date())
+      ? guestStats.todaysMastered ?? todaysMasteredFromProgress
+      : 0;
+  }, [firebaseUser, profile, guestStats, todaysMasteredFromProgress]);
 
   const dailyGoal = DAILY_WORD_GOAL;
-  const todaysMastered = todaysMasteredFromProfile ?? todaysMasteredFromProgress;
+  const todaysMastered = firebaseUser
+    ? todaysMasteredFromProfile
+    : todaysMasteredFromProfile ?? todaysMasteredFromProgress;
   const formattedStreak = `${formatCompactNumber(normalizedStreak)} gün`; // En az 1 gün göster
   const formattedDailyProgress = `${formatCompactNumber(todaysMastered)}/${formatCompactNumber(dailyGoal)}`;
   const formattedFavorites = formatCompactNumber(favoriteCount);

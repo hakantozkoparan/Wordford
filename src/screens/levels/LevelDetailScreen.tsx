@@ -36,7 +36,7 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     recordAnswer,
     saveExampleSentence,
   } = useWords();
-  const { profile, spendEnergy, spendRevealToken } = useAuth();
+  const { profile, firebaseUser, guestResources, spendEnergy, spendRevealToken } = useAuth();
   const [index, setIndex] = useState(route.params.index ?? 0);
   const [revealed, setRevealed] = useState(false);
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
@@ -72,11 +72,13 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const showErrorCard = Boolean(error);
   const showFavoriteAction = feedback === 'correct';
   const showRevealAction = feedback !== 'correct';
-  const totalEnergy = Math.max((profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0), 0);
-  const totalRevealTokens = Math.max(
-    (profile?.dailyRevealTokens ?? 0) + (profile?.bonusRevealTokens ?? 0),
-    0,
-  );
+  const authenticatedEnergy = (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0);
+  const authenticatedReveal = (profile?.dailyRevealTokens ?? 0) + (profile?.bonusRevealTokens ?? 0);
+  const guestEnergy = guestResources?.dailyEnergy ?? 0;
+  const guestReveal = guestResources?.dailyRevealTokens ?? 0;
+
+  const totalEnergy = Math.max(firebaseUser ? authenticatedEnergy : guestEnergy, 0);
+  const totalRevealTokens = Math.max(firebaseUser ? authenticatedReveal : guestReveal, 0);
 
   useEffect(() => {
     if (words.length === 0) {
@@ -156,7 +158,9 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
     const trimmed = answer.toLocaleLowerCase('tr-TR').trim();
     const isCorrect = normalizedMeanings(word).includes(trimmed);
-    const availableEnergy = (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0);
+    const availableEnergy = firebaseUser
+      ? (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0)
+      : guestResources?.dailyEnergy ?? 0;
 
     if (availableEnergy <= 0) {
       setFeedback(null);
@@ -187,18 +191,15 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const handleReveal = async () => {
     if (!word || revealed) return;
     try {
-      const availableRevealTokens =
-        (profile?.dailyRevealTokens ?? 0) + (profile?.bonusRevealTokens ?? 0);
-      const availableEnergy = (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0);
-
-      if (availableRevealTokens > 0) {
-        await spendRevealToken();
-      } else if (availableEnergy > 0) {
-        await spendEnergy(1);
-      } else {
-        setError('Yeterli cevabı göster hakkınız veya enerjiniz yok.');
+      const availableRevealTokens = firebaseUser
+        ? (profile?.dailyRevealTokens ?? 0) + (profile?.bonusRevealTokens ?? 0)
+        : guestResources?.dailyRevealTokens ?? 0;
+      if ((availableRevealTokens ?? 0) <= 0) {
+        setError('Cevabı göster hakkınız kalmadı.');
         return;
       }
+
+      await spendRevealToken();
       await markHintUsed(word);
       setRevealed(true);
       setError(null);

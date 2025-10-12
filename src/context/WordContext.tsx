@@ -39,7 +39,7 @@ interface WordContextValue {
 const WordContext = createContext<WordContextValue | undefined>(undefined);
 
 export const WordProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, refreshGuestStats } = useAuth();
   const [wordsByLevel, setWordsByLevel] = useState<Partial<Record<LevelCode, WordEntry[]>>>({});
   const [progressMap, setProgressMap] = useState<Record<string, WordProgress>>({});
   const [levelLoading, setLevelLoading] = useState<Record<LevelCode, boolean>>({
@@ -253,11 +253,12 @@ export const WordProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           await recordGuestActivity(now);
         }
+        await refreshGuestStats();
         return;
       }
       await recordAnswerResult(firebaseUser.uid, word, isCorrect);
     },
-    [firebaseUser, updateGuestProgress],
+    [firebaseUser, updateGuestProgress, refreshGuestStats],
   );
 
   const saveExampleSentence = useCallback(
@@ -284,7 +285,7 @@ export const WordProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       await updateUserExampleSentence(firebaseUser.uid, word, example);
     },
-    [firebaseUser, updateGuestProgress],
+  [firebaseUser, updateGuestProgress],
   );
 
   const favorites = useMemo(

@@ -7,6 +7,13 @@ import { FIREBASE_COLLECTIONS } from '@/config/appConfig';
 import { auth, db } from '@/config/firebase';
 import { deleteUserAccount, loginUser, logoutUser, parseAuthError, registerUser } from '@/services/authService';
 import { consumeEnergy, consumeRevealToken, ensureDailyResources } from '@/services/creditService';
+import {
+  consumeGuestEnergy,
+  consumeGuestReveal,
+  ensureGuestResources,
+  type GuestResources,
+} from '@/services/guestResourceService';
+import { ensureGuestStats, type GuestStats } from '@/services/guestStatsService';
 import { updateDailyStreak } from '@/services/userStatsService';
 import { getDeviceMetadata } from '@/utils/device';
 import { UserProfile } from '@/types/models';
@@ -37,6 +44,9 @@ interface AuthContextValue {
   refreshDailyResources: () => Promise<void>;
   spendEnergy: (amount?: number) => Promise<void>;
   spendRevealToken: () => Promise<void>;
+  guestResources: GuestResources | null;
+  guestStats: GuestStats | null;
+  refreshGuestStats: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -47,6 +57,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [initializing, setInitializing] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [guestResources, setGuestResourcesState] = useState<GuestResources | null>(null);
+  const [guestStats, setGuestStatsState] = useState<GuestStats | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -59,9 +71,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!firebaseUser) {
       setProfile(null);
+      Promise.all([ensureGuestResources(), ensureGuestStats()])
+        .then(([resources, stats]) => {
+          setGuestResourcesState(resources);
+          setGuestStatsState(stats);
+        })
+        .catch((err) => {
+          console.warn('Misafir verileri yüklenemedi:', err);
+          setGuestResourcesState(null);
+          setGuestStatsState(null);
+        });
       return;
     }
 
+    setGuestResourcesState(null);
+    setGuestStatsState(null);
     const userDoc = doc(db, FIREBASE_COLLECTIONS.users, firebaseUser.uid);
     const unsubscribe = onSnapshot(userDoc, async (snapshot) => {
       if (!snapshot.exists()) {
@@ -196,20 +220,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [firebaseUser]);
 
   const refreshDailyResources = useCallback(async () => {
-    if (!firebaseUser) return;
+    if (!firebaseUser) {
+      const refreshed = await ensureGuestResources();
+      setGuestResourcesState(refreshed);
+      return;
+    }
     await ensureDailyResources(firebaseUser.uid);
+  }, [firebaseUser]);
+
+  const refreshGuestStats = useCallback(async () => {
+    if (firebaseUser) {
+      return;
+    }
+    const stats = await ensureGuestStats();
+    setGuestStatsState(stats);
   }, [firebaseUser]);
 
   const spendEnergy = useCallback(
     async (amount = 1) => {
-      if (!firebaseUser) return;
+      if (!firebaseUser) {
+        const updated = await consumeGuestEnergy(amount ?? 1);
+        setGuestResourcesState(updated);
+        return;
+      }
       await consumeEnergy(firebaseUser.uid, amount);
     },
     [firebaseUser],
   );
 
   const spendRevealToken = useCallback(async () => {
-    if (!firebaseUser) return;
+    if (!firebaseUser) {
+      const updated = await consumeGuestReveal();
+      setGuestResourcesState(updated);
+      return;
+    }
     await consumeRevealToken(firebaseUser.uid);
   }, [firebaseUser]);
 
@@ -227,8 +271,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       refreshDailyResources,
       spendEnergy,
       spendRevealToken,
+      guestResources,
+      guestStats,
+      refreshGuestStats,
     }),
-    [firebaseUser, profile, initializing, loading, error, register, login, signOut, deleteAccount, refreshDailyResources, spendEnergy, spendRevealToken],
+    [
+      firebaseUser,
+      profile,
+      initializing,
+      loading,
+      error,
+      register,
+      login,
+      signOut,
+      deleteAccount,
+      refreshDailyResources,
+      spendEnergy,
+      spendRevealToken,
+      guestResources,
+      guestStats,
+      refreshGuestStats,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

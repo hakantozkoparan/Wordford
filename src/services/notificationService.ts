@@ -174,13 +174,11 @@ const scheduleReminders = async () => {
 
 const fetchExpoPushToken = async (): Promise<string | null> => {
   if (!Device.isDevice) {
-    console.warn('Fiziksel cihaz olmadan push token alınamıyor.');
     return null;
   }
 
   const projectId = getProjectId();
   if (!projectId) {
-    console.warn('Expo projectId bulunamadı. app.json içine EAS projectId ekleyin.');
     return null;
   }
 
@@ -188,7 +186,6 @@ const fetchExpoPushToken = async (): Promise<string | null> => {
     const response = await Notifications.getExpoPushTokenAsync({ projectId });
     return response.data;
   } catch (error) {
-    console.warn('Expo push token alınamadı:', error);
     return null;
   }
 };

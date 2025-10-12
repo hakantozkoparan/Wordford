@@ -150,6 +150,7 @@ service cloud.firestore {
 
 ## 🔄 Günlük Enerji & Haklar
 - `creditService.ensureDailyResources` her oturumda kullanıcıya günlük enerji ve "cevabı göster" haklarını Firebase sunucu saatiyle senkronize şekilde tanımlar.
+- Misafir kullanıcılar için `guestResourceService.ensureGuestResources` fonksiyonu günlük enerji ve "cevabı göster" haklarını cihazda saklar, gün aşımında otomatik yeniler.
 - `progressService.recordAnswerResult` doğru/yanlış cevapları deneme sayısı ve durum olarak işler.
 - `AuthContext` ve `WordContext` gerekli servisleri tek noktadan sağlar.
 
