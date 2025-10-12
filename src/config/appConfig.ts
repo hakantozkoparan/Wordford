@@ -2,6 +2,7 @@ export const DAILY_ENERGY_ALLOCATION = 20;
 export const DAILY_REVEAL_TOKENS = 5;
 export const DAILY_WORD_GOAL = 10;
 export const WORDS_PER_AD_BREAK = 5;
+export const SESSION_REWARDED_INTERVAL_MS = 5 * 60 * 1000;
 export const MAX_REGISTRATIONS_PER_DEVICE = 3;
 export const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 export const LOGIN_LOCK_DURATION_MINUTES = 60;

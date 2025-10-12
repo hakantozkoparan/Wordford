@@ -1,11 +1,12 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, AppState, AppStateStatus } from 'react-native';
 
 import { useAuth } from '@/context/AuthContext';
 import { showRewardedAd } from '@/services/rewardAdService';
 import { grantBonusResources } from '@/services/creditService';
 import { addGuestBonusResources } from '@/services/guestResourceService';
 import { CreditRewardsModal } from '@/components/CreditRewardsModal';
+import { SESSION_REWARDED_INTERVAL_MS } from '@/config/appConfig';
 
 interface RewardContextValue {
   isModalVisible: boolean;
@@ -13,6 +14,7 @@ interface RewardContextValue {
   closeRewardsModal: () => void;
   watchEnergyAd: () => Promise<void>;
   watchRevealAd: () => Promise<void>;
+  playRewardedAd: (type: RewardTab) => Promise<void>;
   isProcessing: boolean;
   initialTab: RewardTab;
   processingType: RewardTab | null;
@@ -28,6 +30,8 @@ export const RewardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isProcessing, setProcessing] = useState(false);
   const [initialTab, setInitialTab] = useState<RewardTab>('energy');
   const [processingType, setProcessingType] = useState<RewardTab | null>(null);
+  const sessionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isProcessingRef = useRef(isProcessing);
 
   const closeRewardsModal = useCallback(() => {
     if (isProcessing) return;
@@ -86,6 +90,64 @@ export const RewardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const watchEnergyAd = useCallback(async () => watchAd('energy'), [watchAd]);
   const watchRevealAd = useCallback(async () => watchAd('reveal'), [watchAd]);
+  const playRewardedAd = useCallback(async (type: RewardTab) => {
+    setInitialTab(type);
+    await watchAd(type);
+  }, [watchAd]);
+
+  const clearSessionTimer = useCallback(() => {
+    if (sessionTimerRef.current) {
+      clearTimeout(sessionTimerRef.current);
+      sessionTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleSessionTimer = useCallback(() => {
+    clearSessionTimer();
+    if (AppState.currentState !== 'active') {
+      return;
+    }
+    sessionTimerRef.current = setTimeout(() => {
+      clearSessionTimer();
+      if (isProcessingRef.current) {
+        scheduleSessionTimer();
+        return;
+      }
+      (async () => {
+        try {
+          console.info('5 dakikalık oturum reklamı tetiklendi.');
+          await playRewardedAd('energy');
+        } catch (error) {
+          console.warn('Session rewarded ad başarısız oldu:', error);
+        } finally {
+          scheduleSessionTimer();
+        }
+      })();
+    }, SESSION_REWARDED_INTERVAL_MS);
+  }, [clearSessionTimer, playRewardedAd]);
+
+  useEffect(() => {
+    isProcessingRef.current = isProcessing;
+  }, [isProcessing]);
+
+  useEffect(() => {
+    scheduleSessionTimer();
+
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      if (nextState === 'active') {
+        scheduleSessionTimer();
+      } else {
+        clearSessionTimer();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      clearSessionTimer();
+      subscription.remove();
+    };
+  }, [scheduleSessionTimer, clearSessionTimer]);
 
   const value = useMemo(
     () => ({
@@ -94,6 +156,7 @@ export const RewardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       closeRewardsModal,
       watchEnergyAd,
       watchRevealAd,
+      playRewardedAd,
       isProcessing,
       initialTab,
       processingType,
@@ -104,6 +167,7 @@ export const RewardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       closeRewardsModal,
       watchEnergyAd,
       watchRevealAd,
+      playRewardedAd,
       isProcessing,
       initialTab,
       processingType,

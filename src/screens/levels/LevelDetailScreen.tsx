@@ -16,7 +16,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRewards } from '@/context/RewardContext';
 import { AppStackParamList } from '@/navigation/types';
 import { LevelCode, WordEntry } from '@/types/models';
-import { shouldShowInterstitial, showInterstitialAd } from '@/services/adService';
+import { registerAttemptAndShouldShowAd, resetAdCounter } from '@/services/adService';
 
 interface FormValues {
   answer: string;
@@ -38,7 +38,7 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     saveExampleSentence,
   } = useWords();
   const { profile, firebaseUser, guestResources, spendEnergy, spendRevealToken } = useAuth();
-  const { openRewardsModal } = useRewards();
+  const { openRewardsModal, playRewardedAd } = useRewards();
   const [index, setIndex] = useState(route.params.index ?? 0);
   const [revealed, setRevealed] = useState(false);
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
@@ -59,6 +59,14 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   useEffect(() => {
     loadLevelWords(level as LevelCode).catch(() => undefined);
   }, [level, loadLevelWords]);
+
+  useEffect(() => {
+    resetAdCounter();
+  }, [level]);
+
+  useEffect(() => () => {
+    resetAdCounter();
+  }, []);
 
   const words = useMemo(() => wordsByLevel[level as LevelCode] ?? [], [level, wordsByLevel]);
   const word = words[index];
@@ -186,11 +194,22 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
     setFeedback(isCorrect ? 'correct' : 'incorrect');
 
+    let attemptRegistered = false;
     try {
       await recordAnswer(word, isCorrect);
+      attemptRegistered = true;
     } catch (err) {
       setFeedback(null);
       setError((err as Error).message ?? 'Cevap kaydedilemedi.');
+    }
+
+    if (attemptRegistered && registerAttemptAndShouldShowAd()) {
+      try {
+        console.info('Deneme limiti aşıldı, ödüllü reklam başlatılıyor.');
+        await playRewardedAd('energy');
+      } catch (err) {
+        console.warn('Automatic rewarded ad başarısız oldu:', err);
+      }
     }
   });
 
@@ -234,9 +253,6 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     setRevealed(false);
     setError(null);
     reset({ answer: '' });
-    if (!reachedEnd && shouldShowInterstitial()) {
-      showInterstitialAd().catch(() => undefined);
-    }
   };
 
   const toggleFavorite = async () => {

@@ -4,7 +4,7 @@ import { WORDS_PER_AD_BREAK } from '@/config/appConfig';
 
 let attemptCounter = 0;
 
-export const shouldShowInterstitial = () => {
+export const registerAttemptAndShouldShowAd = () => {
   attemptCounter += 1;
   if (attemptCounter % WORDS_PER_AD_BREAK === 0) {
     return true;
