@@ -8,6 +8,7 @@ import { ResourcePill } from '@/components/ResourcePill';
 import { colors, spacing, typography } from '@/theme';
 import { useAuth } from '@/context/AuthContext';
 import { useWords } from '@/context/WordContext';
+import { useRewards } from '@/context/RewardContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppStackParamList } from '@/navigation/types';
@@ -16,15 +17,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 export const ProfileScreen: React.FC = () => {
   const { profile, signOut, firebaseUser, guestResources, deleteAccount, loading } = useAuth();
   const { favorites, knownWords } = useWords();
+  const { openRewardsModal } = useRewards();
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const isAuthenticated = Boolean(firebaseUser);
 
   const totalEnergy = firebaseUser
     ? (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0)
-    : guestResources?.dailyEnergy ?? 0;
+    : (guestResources?.dailyEnergy ?? 0) + (guestResources?.bonusEnergy ?? 0);
   const totalReveal = firebaseUser
     ? (profile?.dailyRevealTokens ?? 0) + (profile?.bonusRevealTokens ?? 0)
-    : guestResources?.dailyRevealTokens ?? 0;
+    : (guestResources?.dailyRevealTokens ?? 0) + (guestResources?.bonusRevealTokens ?? 0);
 
   const stats = useMemo(
     () => [
@@ -137,6 +139,13 @@ export const ProfileScreen: React.FC = () => {
               <ResourcePill label="Enerji" value={totalEnergy} />
               <ResourcePill label="Cevabı Göster" value={totalReveal} />
             </View>
+            <PrimaryButton
+              label="Kredi Kazan"
+              onPress={() => openRewardsModal()}
+              size="compact"
+              style={styles.rewardButton}
+              icon="gift"
+            />
           </LinearGradient>
 
           {isAuthenticated ? (
@@ -271,6 +280,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     flexWrap: 'wrap',
+  },
+  rewardButton: {
+    marginTop: spacing.sm,
+    alignSelf: 'flex-start',
   },
   statCard: {
     flex: 1,

@@ -13,6 +13,7 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { colors, radius, spacing, typography, palette } from '@/theme';
 import { useWords } from '@/context/WordContext';
 import { useAuth } from '@/context/AuthContext';
+import { useRewards } from '@/context/RewardContext';
 import { AppStackParamList } from '@/navigation/types';
 import { LevelCode, WordEntry } from '@/types/models';
 import { shouldShowInterstitial, showInterstitialAd } from '@/services/adService';
@@ -37,6 +38,7 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     saveExampleSentence,
   } = useWords();
   const { profile, firebaseUser, guestResources, spendEnergy, spendRevealToken } = useAuth();
+  const { openRewardsModal } = useRewards();
   const [index, setIndex] = useState(route.params.index ?? 0);
   const [revealed, setRevealed] = useState(false);
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
@@ -74,8 +76,10 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const showRevealAction = feedback !== 'correct';
   const authenticatedEnergy = (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0);
   const authenticatedReveal = (profile?.dailyRevealTokens ?? 0) + (profile?.bonusRevealTokens ?? 0);
-  const guestEnergy = guestResources?.dailyEnergy ?? 0;
-  const guestReveal = guestResources?.dailyRevealTokens ?? 0;
+  const guestEnergy =
+    (guestResources?.dailyEnergy ?? 0) + (guestResources?.bonusEnergy ?? 0);
+  const guestReveal =
+    (guestResources?.dailyRevealTokens ?? 0) + (guestResources?.bonusRevealTokens ?? 0);
 
   const totalEnergy = Math.max(firebaseUser ? authenticatedEnergy : guestEnergy, 0);
   const totalRevealTokens = Math.max(firebaseUser ? authenticatedReveal : guestReveal, 0);
@@ -160,11 +164,12 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     const isCorrect = normalizedMeanings(word).includes(trimmed);
     const availableEnergy = firebaseUser
       ? (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0)
-      : guestResources?.dailyEnergy ?? 0;
+      : (guestResources?.dailyEnergy ?? 0) + (guestResources?.bonusEnergy ?? 0);
 
     if (availableEnergy <= 0) {
       setFeedback(null);
       setError('Enerji hakkınız kalmadı. Cevabı kontrol edebilmek için daha fazla enerji gerekiyor.');
+      openRewardsModal('energy');
       return;
     }
 
@@ -175,6 +180,7 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     } catch (err) {
       setFeedback(null);
       setError((err as Error).message ?? 'Enerji harcanamadı.');
+      openRewardsModal('energy');
       return;
     }
 
@@ -193,9 +199,10 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     try {
       const availableRevealTokens = firebaseUser
         ? (profile?.dailyRevealTokens ?? 0) + (profile?.bonusRevealTokens ?? 0)
-        : guestResources?.dailyRevealTokens ?? 0;
+        : (guestResources?.dailyRevealTokens ?? 0) + (guestResources?.bonusRevealTokens ?? 0);
       if ((availableRevealTokens ?? 0) <= 0) {
         setError('Cevabı göster hakkınız kalmadı.');
+        openRewardsModal('reveal');
         return;
       }
 
@@ -205,6 +212,7 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
       setError(null);
     } catch (err) {
       setError((err as Error).message);
+      openRewardsModal('reveal');
     }
   };
 

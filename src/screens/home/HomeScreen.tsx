@@ -10,12 +10,14 @@ import { GradientBackground } from '@/components/GradientBackground';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { LevelCard } from '@/components/LevelCard';
 import { ResourcePill } from '@/components/ResourcePill';
+import { PrimaryButton } from '@/components/PrimaryButton';
 import { ProgressBar } from '@/components/ProgressBar';
 import { StreakCelebrationModal } from '@/components/StreakCelebrationModal';
 import { colors, radius, spacing, typography } from '@/theme';
 import { LEVEL_CODES, LEVEL_LABELS, TOTAL_WORD_COUNT, WORDS_PER_LEVEL } from '@/constants/levels';
 import { LEVEL_GRADIENTS, LEVEL_ICONS } from '@/constants/levelThemes';
 import { useAuth } from '@/context/AuthContext';
+import { useRewards } from '@/context/RewardContext';
 import { useWords } from '@/context/WordContext';
 import { LevelCode, WordProgress } from '@/types/models';
 import { AppStackParamList } from '@/navigation/types';
@@ -47,6 +49,7 @@ const calculateLevelProgress = (
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const { profile, firebaseUser, guestResources, guestStats } = useAuth();
+  const { openRewardsModal } = useRewards();
   const { wordsByLevel, progressMap, loadLevelWords } = useWords();
   const [streakModalVisible, setStreakModalVisible] = useState(false);
   const [streakModalVariant, setStreakModalVariant] = useState<'celebration' | 'reset' | null>(null);
@@ -161,10 +164,10 @@ export const HomeScreen: React.FC = () => {
 
   const availableEnergy = firebaseUser
     ? (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0)
-    : guestResources?.dailyEnergy ?? 0;
+    : (guestResources?.dailyEnergy ?? 0) + (guestResources?.bonusEnergy ?? 0);
   const availableRevealTokens = firebaseUser
     ? (profile?.dailyRevealTokens ?? 0) + (profile?.bonusRevealTokens ?? 0)
-    : guestResources?.dailyRevealTokens ?? 0;
+    : (guestResources?.dailyRevealTokens ?? 0) + (guestResources?.bonusRevealTokens ?? 0);
 
   const todaysMasteredFromProgress = useMemo(() => {
     const today = new Date();
@@ -269,6 +272,13 @@ export const HomeScreen: React.FC = () => {
                   <ResourcePill label="Enerji" value={availableEnergy} icon="flash" />
                   <ResourcePill label="Cevabı Göster" value={availableRevealTokens} icon="eye" />
                 </View>
+                <PrimaryButton
+                  label="Kredi Kazan"
+                  onPress={() => openRewardsModal()}
+                  size="compact"
+                  style={styles.rewardButton}
+                  icon="gift"
+                />
               </View>
             </LinearGradient>
           </View>
@@ -419,6 +429,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignSelf: 'center',
     marginTop: spacing.xs,
+  },
+  rewardButton: {
+    marginTop: spacing.sm,
+    alignSelf: 'center',
+    minWidth: 200,
   },
   progressCard: {
     backgroundColor: colors.card,

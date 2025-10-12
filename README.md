@@ -149,7 +149,8 @@ service cloud.firestore {
 - Tüm ekranların alt kısmında `AdBanner` bileşeni üzerinden AdMob banner reklamı gösterilir. Varsayılan olarak Google'ın test kimlikleri (`ca-app-pub-3940256099942544/2934735716`) kullanılır; üretim dağıtımından önce kendi kimliklerinizle güncelleyin.
 - `ScreenContainer` bileşeni banner alanını otomatik ekler. Özel bir ekranda reklam gizlemek isterseniz `showAd={false}` prop'u ile devre dışı bırakabilirsiniz.
 - `app.json` içinde `expo-ads-admob` eklentisi iOS test App ID’si (`ca-app-pub-3940256099942544~1458002511`) ile yapılandırılmıştır. Kendi projenizin App ID'siyle değiştirmeyi unutmayın.
-- Interstitial veya ödüllü reklamlar eklemek isterseniz `expo-ads-admob` veya alternatif AdMob SDK fonksiyonlarını kullanabilirsiniz.
+- Ödüllü reklam akışı `CreditRewardsModal` ve `RewardContext` üzerinden yönetilir. Reklam izleyen kullanıcıya +3 enerji ya da +1 "cevabı göster" bonusu tanımlanır; bonus bakiyeleri günlük sıfırlamadan etkilenmez.
+- Expo Go, ödüllü reklamları desteklemez. Reklam akışını test etmek için `eas dev-build` ile kendi geliştirme istemcinizi oluşturup kullanmanız gerekir; Expo Go'da bu adımlar kullanıcıya bilgilendirici uyarı göstererek engellenir.
 
 ## 🔄 Günlük Enerji & Haklar
 - `creditService.ensureDailyResources` her oturumda kullanıcıya günlük enerji ve "cevabı göster" haklarını Firebase sunucu saatiyle senkronize şekilde tanımlar.

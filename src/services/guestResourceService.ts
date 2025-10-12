@@ -8,6 +8,8 @@ export interface GuestResources {
   dailyRevealTokens: number;
   lastEnergyRefresh: string | null;
   lastRevealRefresh: string | null;
+  bonusEnergy: number;
+  bonusRevealTokens: number;
 }
 
 const DEFAULT_RESOURCES: GuestResources = {
@@ -15,6 +17,8 @@ const DEFAULT_RESOURCES: GuestResources = {
   dailyRevealTokens: DAILY_REVEAL_TOKENS,
   lastEnergyRefresh: null,
   lastRevealRefresh: null,
+  bonusEnergy: 0,
+  bonusRevealTokens: 0,
 };
 
 const persistGuestResources = async (resources: GuestResources) => {
@@ -81,13 +85,19 @@ export const consumeGuestEnergy = async (amount = 1): Promise<GuestResources> =>
   }
 
   const resources = await ensureGuestResources();
-  if (resources.dailyEnergy < amount) {
+  const totalAvailable = resources.dailyEnergy + resources.bonusEnergy;
+
+  if (totalAvailable < amount) {
     throw new Error('Enerji hakkınız kalmadı.');
   }
 
   const updated: GuestResources = {
     ...resources,
-    dailyEnergy: resources.dailyEnergy - amount,
+    dailyEnergy: Math.max(0, resources.dailyEnergy - amount),
+    bonusEnergy:
+      resources.dailyEnergy >= amount
+        ? resources.bonusEnergy
+        : Math.max(0, resources.bonusEnergy - (amount - resources.dailyEnergy)),
   };
 
   await persistGuestResources(updated);
@@ -96,13 +106,19 @@ export const consumeGuestEnergy = async (amount = 1): Promise<GuestResources> =>
 
 export const consumeGuestReveal = async (): Promise<GuestResources> => {
   const resources = await ensureGuestResources();
-  if (resources.dailyRevealTokens <= 0) {
+  const totalAvailable = resources.dailyRevealTokens + resources.bonusRevealTokens;
+
+  if (totalAvailable <= 0) {
     throw new Error('Cevabı göster hakkınız kalmadı.');
   }
 
   const updated: GuestResources = {
     ...resources,
-    dailyRevealTokens: resources.dailyRevealTokens - 1,
+    dailyRevealTokens: Math.max(0, resources.dailyRevealTokens - 1),
+    bonusRevealTokens:
+      resources.dailyRevealTokens > 0
+        ? resources.bonusRevealTokens
+        : Math.max(0, resources.bonusRevealTokens - 1),
   };
 
   await persistGuestResources(updated);
@@ -119,4 +135,24 @@ export const resetGuestResources = async () => {
     lastEnergyRefresh: new Date().toISOString(),
     lastRevealRefresh: new Date().toISOString(),
   });
+};
+
+export const addGuestBonusResources = async (payload: {
+  energyDelta?: number;
+  revealDelta?: number;
+}) => {
+  const { energyDelta = 0, revealDelta = 0 } = payload;
+  if (energyDelta === 0 && revealDelta === 0) {
+    return ensureGuestResources();
+  }
+
+  const resources = await ensureGuestResources();
+  const updated: GuestResources = {
+    ...resources,
+    bonusEnergy: Math.max(0, resources.bonusEnergy + energyDelta),
+    bonusRevealTokens: Math.max(0, resources.bonusRevealTokens + revealDelta),
+  };
+
+  await persistGuestResources(updated);
+  return updated;
 };
