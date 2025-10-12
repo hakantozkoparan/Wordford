@@ -88,6 +88,7 @@ export const registerUser = async (payload: RegistrationPayload) => {
     },
     // İstatistikler
     totalWordsLearned: 0,
+    totalWordsUpdatedAt: null,
     currentStreak: 0,
     longestStreak: 0,
     lastActivityDate: null,
@@ -104,6 +105,7 @@ export const registerUser = async (payload: RegistrationPayload) => {
   lastEnergyRefresh: serverTimestamp(),
   lastRevealRefresh: serverTimestamp(),
     lastLoginAt: serverTimestamp(),
+    totalWordsUpdatedAt: serverTimestamp(),
     deviceSnapshot: device,
   });
 

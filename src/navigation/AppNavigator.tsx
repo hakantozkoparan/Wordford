@@ -12,6 +12,7 @@ import { RegisterScreen } from '@/screens/auth/RegisterScreen';
 import { HomeScreen } from '@/screens/home/HomeScreen';
 import { WordsScreen } from '../screens/words/WordsScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
+import { RankingScreen } from '../screens/ranking/RankingScreen';
 import { LevelDetailScreen } from '../screens/levels/LevelDetailScreen';
 import { AdminWordScreen } from '../screens/admin/AdminWordScreen';
 import { AdminPanelScreen } from '../screens/admin/AdminPanelScreen';
@@ -56,6 +57,8 @@ const TabNavigator = () => (
           iconName = focused ? 'home' : 'home-outline';
         } else if (route.name === 'Words') {
           iconName = focused ? 'book' : 'book-outline';
+        } else if (route.name === 'Ranking') {
+          iconName = focused ? 'trophy' : 'trophy-outline';
         } else if (route.name === 'Profile') {
           iconName = focused ? 'person' : 'person-outline';
         }
@@ -65,6 +68,7 @@ const TabNavigator = () => (
   >
     <Tabs.Screen name="Home" component={HomeScreen} options={{ title: 'Ana Sayfa' }} />
     <Tabs.Screen name="Words" component={WordsScreen} options={{ title: 'Kelimelerim' }} />
+    <Tabs.Screen name="Ranking" component={RankingScreen} options={{ title: 'Sıralama' }} />
     <Tabs.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profilim' }} />
   </Tabs.Navigator>
 );

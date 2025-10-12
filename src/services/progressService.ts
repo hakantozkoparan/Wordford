@@ -3,7 +3,7 @@ import { collection, doc, onSnapshot, runTransaction, serverTimestamp } from 'fi
 import { FIREBASE_COLLECTIONS } from '@/config/appConfig';
 import { db } from '@/config/firebase';
 import { WordEntry, WordProgress } from '@/types/models';
-import { incrementDailyMastered } from './userStatsService';
+import { incrementDailyMastered, incrementTotalWordsLearned } from './userStatsService';
 
 const getProgressCollectionRef = (userId: string) =>
   collection(db, FIREBASE_COLLECTIONS.users, userId, FIREBASE_COLLECTIONS.progress);
@@ -73,6 +73,7 @@ export const recordAnswerResult = async (userId: string, word: WordEntry, isCorr
 
   if (becameMastered) {
     await incrementDailyMastered(userId);
+    await incrementTotalWordsLearned(userId);
   }
 };
 

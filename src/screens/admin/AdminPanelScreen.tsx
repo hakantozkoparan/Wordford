@@ -11,6 +11,7 @@ import { ResourcePill } from '@/components/ResourcePill';
 import { colors, radius, spacing, typography } from '@/theme';
 import { AppStackParamList } from '@/navigation/types';
 import { grantBonusResourcesByEmail } from '@/services/creditService';
+import { addMockUsers, deleteMockUsers } from '@/utils/mockUsers';
 
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -29,6 +30,7 @@ export const AdminPanelScreen: React.FC<Props> = ({ navigation }) => {
   const [energyDelta, setEnergyDelta] = useState('0');
   const [revealDelta, setRevealDelta] = useState('0');
   const [loading, setLoading] = useState(false);
+  const [mockLoading, setMockLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [result, setResult] = useState<ResourceGrantResult | null>(null);
 
@@ -90,6 +92,55 @@ export const AdminPanelScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+  const handleAddMockUsers = async () => {
+    Alert.alert(
+      'Mock Kullanıcı Ekle',
+      '150 tane test kullanıcısı eklenecek. Bu işlem birkaç dakika sürebilir. Devam etmek istiyor musun?',
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Ekle',
+          onPress: async () => {
+            setMockLoading(true);
+            try {
+              await addMockUsers();
+              Alert.alert('Başarılı', '150 mock kullanıcı başarıyla eklendi!');
+            } catch (error) {
+              Alert.alert('Hata', `Mock kullanıcılar eklenirken hata: ${error}`);
+            } finally {
+              setMockLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteMockUsers = async () => {
+    Alert.alert(
+      'Mock Kullanıcıları Sil',
+      'Tüm test kullanıcıları silinecek. Bu işlem geri alınamaz. Devam etmek istiyor musun?',
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Sil',
+          style: 'destructive',
+          onPress: async () => {
+            setMockLoading(true);
+            try {
+              await deleteMockUsers();
+              Alert.alert('Başarılı', 'Mock kullanıcılar başarıyla silindi!');
+            } catch (error) {
+              Alert.alert('Hata', `Mock kullanıcılar silinirken hata: ${error}`);
+            } finally {
+              setMockLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <GradientBackground paddingTop={spacing.lg}>
       <ScreenContainer style={styles.container} edges={['top', 'left', 'right']}>
@@ -132,6 +183,37 @@ export const AdminPanelScreen: React.FC<Props> = ({ navigation }) => {
               icon="construct"
               iconColor={colors.accent}
             />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Test Verileri</Text>
+            <Text style={styles.sectionDescription}>
+              Liderlik tablosunu test etmek için mock kullanıcı verileri ekle veya sil.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <View style={{ flex: 1 }}>
+                <PrimaryButton
+                  label="150 Test Kullanıcı Ekle"
+                  onPress={handleAddMockUsers}
+                  variant="secondary"
+                  size="compact"
+                  icon="people"
+                  iconColor={colors.primary}
+                  disabled={mockLoading}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <PrimaryButton
+                  label="Test Verilerini Sil"
+                  onPress={handleDeleteMockUsers}
+                  variant="ghost"
+                  size="compact"
+                  icon="trash"
+                  iconColor={colors.danger}
+                  disabled={mockLoading}
+                />
+              </View>
+            </View>
           </View>
 
           <View style={styles.section}>

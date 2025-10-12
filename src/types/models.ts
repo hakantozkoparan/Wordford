@@ -67,6 +67,7 @@ export interface UserProfile {
   };
   // İstatistikler
   totalWordsLearned?: number;
+  totalWordsUpdatedAt?: Timestamp | null;
   currentStreak?: number;
   longestStreak?: number;
   lastActivityDate?: Timestamp | null;

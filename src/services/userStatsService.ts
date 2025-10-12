@@ -145,10 +145,17 @@ export const applyGuestSessionToUser = async (
     }
 
     const data = snapshot.data();
+    const existingTotal = Math.max(data.totalWordsLearned ?? 0, 0);
+    const nextTotal = Math.max(masteredCount, existingTotal);
+
     const updates: Record<string, unknown> = {
-      totalWordsLearned: Math.max(masteredCount, data.totalWordsLearned ?? 0),
+      totalWordsLearned: nextTotal,
       updatedAt: firebaseServerTimestamp(),
     };
+
+    if (nextTotal > existingTotal) {
+      updates.totalWordsUpdatedAt = firebaseServerTimestamp();
+    }
 
     if (guestStats) {
       const guestCurrentStreak = guestStats.currentStreak ?? 0;
@@ -197,5 +204,25 @@ export const applyGuestSessionToUser = async (
     }
 
     transaction.update(userRef, updates);
+  });
+};
+
+export const incrementTotalWordsLearned = async (userId: string): Promise<void> => {
+  const userRef = doc(db, FIREBASE_COLLECTIONS.users, userId);
+
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(userRef);
+    if (!snapshot.exists()) {
+      return;
+    }
+
+    const data = snapshot.data();
+    const currentTotal = Math.max(data.totalWordsLearned ?? 0, 0);
+
+    transaction.update(userRef, {
+      totalWordsLearned: currentTotal + 1,
+      totalWordsUpdatedAt: firebaseServerTimestamp(),
+      updatedAt: firebaseServerTimestamp(),
+    });
   });
 };

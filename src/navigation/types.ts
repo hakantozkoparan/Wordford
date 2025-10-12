@@ -16,5 +16,6 @@ export type AppStackParamList = {
 export type TabsParamList = {
   Home: undefined;
   Words: undefined;
+  Ranking: undefined;
   Profile: undefined;
 };
