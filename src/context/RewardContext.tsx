@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, AppStateStatus } from 'react-native';
+import Constants from 'expo-constants';
 
 import { useAuth } from '@/context/AuthContext';
 import { showRewardedAd } from '@/services/rewardAdService';
@@ -91,6 +92,10 @@ export const RewardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const watchEnergyAd = useCallback(async () => watchAd('energy'), [watchAd]);
   const watchRevealAd = useCallback(async () => watchAd('reveal'), [watchAd]);
   const playRewardedAd = useCallback(async (type: RewardTab) => {
+    if (Constants.appOwnership === 'expo') {
+      console.info('Expo Go ortamında ödüllü reklam tetiklenmedi.');
+      return;
+    }
     setInitialTab(type);
     await watchAd(type);
   }, [watchAd]);
@@ -103,6 +108,10 @@ export const RewardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const scheduleSessionTimer = useCallback(() => {
+    if (Constants.appOwnership === 'expo') {
+      clearSessionTimer();
+      return;
+    }
     clearSessionTimer();
     if (AppState.currentState !== 'active') {
       return;
