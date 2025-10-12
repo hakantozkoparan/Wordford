@@ -34,7 +34,13 @@
       "expo-secure-store",
       "expo-font",
       "expo-notifications",
-      "expo-tracking-transparency"
+      "expo-tracking-transparency",
+      [
+        "expo-ads-admob",
+        {
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+        }
+      ]
     ],
     "extra": {
       "eas": {

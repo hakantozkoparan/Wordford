@@ -146,7 +146,10 @@ service cloud.firestore {
 3. `configureRevenueCat` fonksiyonu SDK’yı ilk çağrıda hazırlar. Test/Simülasyon için RevenueCat sandbox kullanıcılarını kullanın.
 
 ## 📱 Reklam Entegrasyonu
-`src/services/adService.ts` şu anda yalnızca placeholder log üretir. AdMob veya tercih ettiğiniz sağlayıcıdan interstitial reklam gösterimi eklemek için `showInterstitialAd` fonksiyonunu güncelleyin.
+- Tüm ekranların alt kısmında `AdBanner` bileşeni üzerinden AdMob banner reklamı gösterilir. Varsayılan olarak Google'ın test kimlikleri (`ca-app-pub-3940256099942544/2934735716`) kullanılır; üretim dağıtımından önce kendi kimliklerinizle güncelleyin.
+- `ScreenContainer` bileşeni banner alanını otomatik ekler. Özel bir ekranda reklam gizlemek isterseniz `showAd={false}` prop'u ile devre dışı bırakabilirsiniz.
+- `app.json` içinde `expo-ads-admob` eklentisi iOS test App ID’si (`ca-app-pub-3940256099942544~1458002511`) ile yapılandırılmıştır. Kendi projenizin App ID'siyle değiştirmeyi unutmayın.
+- Interstitial veya ödüllü reklamlar eklemek isterseniz `expo-ads-admob` veya alternatif AdMob SDK fonksiyonlarını kullanabilirsiniz.
 
 ## 🔄 Günlük Enerji & Haklar
 - `creditService.ensureDailyResources` her oturumda kullanıcıya günlük enerji ve "cevabı göster" haklarını Firebase sunucu saatiyle senkronize şekilde tanımlar.
