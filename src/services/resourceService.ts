@@ -16,6 +16,8 @@ import {
   DAILY_ENERGY_ALLOCATION,
   DAILY_REVEAL_TOKENS,
   FIREBASE_COLLECTIONS,
+  PREMIUM_DAILY_ENERGY_ALLOCATION,
+  PREMIUM_DAILY_REVEAL_TOKENS,
 } from '@/config/appConfig';
 import { db, firebaseServerTimestamp } from '@/config/firebase';
 import {
@@ -56,29 +58,64 @@ const logResourceTransaction = async (
   });
 };
 
+const toDateOrNull = (value: unknown): Date | null => {
+  if (value instanceof Timestamp) {
+    return value.toDate();
+  }
+  return null;
+};
+
+interface PremiumAllocationMeta {
+  energyCap: number;
+  revealCap: number;
+  isPremium: boolean;
+  premiumExpired: boolean;
+  premiumActiveUntil: Date | null;
+}
+
+const resolvePremiumAllocations = (
+  data: Record<string, unknown>,
+  serverNow: Date,
+): PremiumAllocationMeta => {
+  const premiumActiveUntilDate = toDateOrNull(data.premiumActiveUntil);
+  const isPremium = Boolean(
+    premiumActiveUntilDate && premiumActiveUntilDate.getTime() > serverNow.getTime(),
+  );
+  const premiumExpired = Boolean(data.premiumActiveUntil) && !isPremium;
+
+  return {
+    energyCap: isPremium ? PREMIUM_DAILY_ENERGY_ALLOCATION : DAILY_ENERGY_ALLOCATION,
+    revealCap: isPremium ? PREMIUM_DAILY_REVEAL_TOKENS : DAILY_REVEAL_TOKENS,
+    isPremium,
+    premiumExpired,
+    premiumActiveUntil: premiumActiveUntilDate,
+  };
+};
+
 const refreshDailyBucketsIfNeeded = (
   data: Record<string, unknown>,
   serverNow: Date,
+  caps: { energyCap: number; revealCap: number },
 ) => {
   const lastEnergyRefresh = (data.lastEnergyRefresh as Timestamp | null) ?? null;
   const lastRevealRefresh = (data.lastRevealRefresh as Timestamp | null) ?? null;
 
-  let dailyEnergy = (data.dailyEnergy as number | undefined) ?? DAILY_ENERGY_ALLOCATION;
+  let dailyEnergy = (data.dailyEnergy as number | undefined) ?? caps.energyCap;
   let dailyRevealTokens =
-    (data.dailyRevealTokens as number | undefined) ?? DAILY_REVEAL_TOKENS;
+    (data.dailyRevealTokens as number | undefined) ?? caps.revealCap;
 
   const updates: Record<string, unknown> = {};
   const flags = { energy: false, reveal: false };
 
   if (hasOneDayPassed(lastEnergyRefresh, serverNow)) {
-    dailyEnergy = DAILY_ENERGY_ALLOCATION;
+    dailyEnergy = caps.energyCap;
     updates.dailyEnergy = dailyEnergy;
     updates.lastEnergyRefresh = firebaseServerTimestamp();
     flags.energy = true;
   }
 
   if (hasOneDayPassed(lastRevealRefresh, serverNow)) {
-    dailyRevealTokens = DAILY_REVEAL_TOKENS;
+    dailyRevealTokens = caps.revealCap;
     updates.dailyRevealTokens = dailyRevealTokens;
     updates.lastRevealRefresh = firebaseServerTimestamp();
     flags.reveal = true;
@@ -95,11 +132,45 @@ export const ensureDailyResources = async (userId: string) => {
     return;
   }
 
-  const data = snapshot.data();
-  const { dailyEnergy, dailyRevealTokens, updates, flags } = refreshDailyBucketsIfNeeded(
-    data,
-    serverNow,
-  );
+  const data = snapshot.data() as Record<string, unknown>;
+  const premiumMeta = resolvePremiumAllocations(data, serverNow);
+  const refreshResult = refreshDailyBucketsIfNeeded(data, serverNow, premiumMeta);
+  let { dailyEnergy, dailyRevealTokens } = refreshResult;
+  const { updates, flags } = refreshResult;
+
+  if (premiumMeta.premiumExpired) {
+    const currentEnergy = (data.dailyEnergy as number | undefined) ?? dailyEnergy;
+    const currentReveal = (data.dailyRevealTokens as number | undefined) ?? dailyRevealTokens;
+
+    const clampedEnergy = Math.min(currentEnergy, premiumMeta.energyCap);
+    const clampedReveal = Math.min(currentReveal, premiumMeta.revealCap);
+
+    if (clampedEnergy !== currentEnergy) {
+      updates.dailyEnergy = clampedEnergy;
+      dailyEnergy = clampedEnergy;
+    }
+
+    if (clampedReveal !== currentReveal) {
+      updates.dailyRevealTokens = clampedReveal;
+      dailyRevealTokens = clampedReveal;
+    }
+
+    if (data.premiumActiveUntil) {
+      updates.premiumActiveUntil = null;
+    }
+    if (data.premiumStartedAt) {
+      updates.premiumStartedAt = null;
+    }
+    if (data.premiumSource) {
+      updates.premiumSource = null;
+    }
+    if (data.hasAdFree) {
+      updates.hasAdFree = false;
+    }
+    if (data.subscriptionTier === 'creditsAndAdFree') {
+      updates.subscriptionTier = 'none';
+    }
+  }
 
   if (Object.keys(updates).length > 0) {
     await updateDoc(userRef, {
@@ -109,11 +180,11 @@ export const ensureDailyResources = async (userId: string) => {
   }
 
   if (flags.energy) {
-    await logResourceTransaction(userId, 'energy', dailyEnergy, 'dailyRefresh');
+    await logResourceTransaction(userId, 'energy', premiumMeta.energyCap, 'dailyRefresh');
   }
 
   if (flags.reveal) {
-    await logResourceTransaction(userId, 'reveal', dailyRevealTokens, 'dailyRefresh');
+    await logResourceTransaction(userId, 'reveal', premiumMeta.revealCap, 'dailyRefresh');
   }
 };
 
@@ -129,7 +200,32 @@ export const consumeEnergy = async (userId: string, amount = 1) => {
 
     const data = snapshot.data() as Record<string, unknown>;
     const bonusEnergy = (data.bonusEnergy as number | undefined) ?? 0;
-    const { dailyEnergy, updates } = refreshDailyBucketsIfNeeded(data, serverNow);
+    const premiumMeta = resolvePremiumAllocations(data, serverNow);
+    const refreshResult = refreshDailyBucketsIfNeeded(data, serverNow, premiumMeta);
+    let { dailyEnergy } = refreshResult;
+    const { updates } = refreshResult;
+
+    if (premiumMeta.premiumExpired) {
+      if (dailyEnergy > premiumMeta.energyCap) {
+        dailyEnergy = premiumMeta.energyCap;
+        updates.dailyEnergy = premiumMeta.energyCap;
+      }
+      if (data.premiumActiveUntil) {
+        updates.premiumActiveUntil = null;
+      }
+      if (data.premiumStartedAt) {
+        updates.premiumStartedAt = null;
+      }
+      if (data.premiumSource) {
+        updates.premiumSource = null;
+      }
+      if (data.hasAdFree) {
+        updates.hasAdFree = false;
+      }
+      if (data.subscriptionTier === 'creditsAndAdFree') {
+        updates.subscriptionTier = 'none';
+      }
+    }
 
     let dailyPool = dailyEnergy;
     let bonusPool = bonusEnergy;
@@ -177,7 +273,32 @@ export const consumeRevealToken = async (userId: string) => {
 
     const data = snapshot.data() as Record<string, unknown>;
     const bonusTokens = (data.bonusRevealTokens as number | undefined) ?? 0;
-    const { dailyRevealTokens, updates } = refreshDailyBucketsIfNeeded(data, serverNow);
+    const premiumMeta = resolvePremiumAllocations(data, serverNow);
+    const refreshResult = refreshDailyBucketsIfNeeded(data, serverNow, premiumMeta);
+    let { dailyRevealTokens } = refreshResult;
+    const { updates } = refreshResult;
+
+    if (premiumMeta.premiumExpired) {
+      if (dailyRevealTokens > premiumMeta.revealCap) {
+        dailyRevealTokens = premiumMeta.revealCap;
+        updates.dailyRevealTokens = premiumMeta.revealCap;
+      }
+      if (data.premiumActiveUntil) {
+        updates.premiumActiveUntil = null;
+      }
+      if (data.premiumStartedAt) {
+        updates.premiumStartedAt = null;
+      }
+      if (data.premiumSource) {
+        updates.premiumSource = null;
+      }
+      if (data.hasAdFree) {
+        updates.hasAdFree = false;
+      }
+      if (data.subscriptionTier === 'creditsAndAdFree') {
+        updates.subscriptionTier = 'none';
+      }
+    }
 
     let dailyPool = dailyRevealTokens;
     let bonusPool = bonusTokens;

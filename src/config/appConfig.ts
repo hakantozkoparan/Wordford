@@ -1,5 +1,8 @@
 export const DAILY_ENERGY_ALLOCATION = 20;
 export const DAILY_REVEAL_TOKENS = 5;
+export const PREMIUM_DAILY_ENERGY_ALLOCATION = 40;
+export const PREMIUM_DAILY_REVEAL_TOKENS = 10;
+export const PREMIUM_TRIAL_DURATION_DAYS = 3;
 export const DAILY_WORD_GOAL = 10;
 export const WORDS_PER_AD_BREAK = 5;
 export const SESSION_REWARDED_INTERVAL_MS = 5 * 60 * 1000;
@@ -22,10 +25,12 @@ export const STORAGE_KEYS = {
   guestProgress: 'wordford_guest_progress',
   guestStats: 'wordford_guest_stats',
   guestResources: 'wordford_guest_resources',
+  guestPremium: 'wordford_guest_premium',
   streakSnapshot: 'wordford_streak_snapshot',
   notificationReminders: 'wordford_notification_reminders',
   expoPushToken: 'wordford_expo_push_token',
   trackingPromptShown: 'wordford_tracking_prompt_shown',
+  onboardingCompleted: 'wordford_onboarding_completed',
 };
 
 export const REVENUECAT_KEYS = {

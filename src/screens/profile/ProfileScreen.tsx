@@ -1,10 +1,15 @@
-import { useMemo } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Alert, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+
+const TERMS_URL = 'https://wordford.app/terms';
+const PRIVACY_URL = 'https://wordford.app/privacy';
 
 import { GradientBackground } from '@/components/GradientBackground';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { ResourcePill } from '@/components/ResourcePill';
+import { PremiumTrialModal } from '@/components/PremiumTrialModal';
 import { colors, spacing, typography } from '@/theme';
 import { useAuth } from '@/context/AuthContext';
 import { useWords } from '@/context/WordContext';
@@ -13,13 +18,29 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppStackParamList } from '@/navigation/types';
 import { LinearGradient } from 'expo-linear-gradient';
+import type { PremiumPlanId } from '@/types/premiumPlans';
+import { PREMIUM_PLAN_LABELS } from '@/constants/premiumPlans';
 
 export const ProfileScreen: React.FC = () => {
-  const { profile, signOut, firebaseUser, guestResources, deleteAccount, loading } = useAuth();
+  const {
+    profile,
+    signOut,
+    firebaseUser,
+    guestResources,
+    deleteAccount,
+    loading,
+    refreshDailyResources,
+    premiumStatus,
+    isPremium,
+    startTrial,
+    refreshPremiumStatus,
+  } = useAuth();
   const { favorites, knownWords } = useWords();
   const { openRewardsModal } = useRewards();
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const isAuthenticated = Boolean(firebaseUser);
+  const [premiumModalVisible, setPremiumModalVisible] = useState(false);
+  const [trialLoading, setTrialLoading] = useState(false);
 
   const totalEnergy = firebaseUser
     ? (profile?.dailyEnergy ?? 0) + (profile?.bonusEnergy ?? 0)
@@ -35,7 +56,6 @@ export const ProfileScreen: React.FC = () => {
     ],
     [favorites.length, knownWords.length],
   );
-
   const displayName = useMemo(() => {
     const fullName = `${profile?.firstName ?? ''} ${profile?.lastName ?? ''}`.trim();
     if (fullName.length > 0) {
@@ -64,6 +84,23 @@ export const ProfileScreen: React.FC = () => {
     ? 'Öğrenme yolculuğun burada devam ediyor.'
     : 'İlerlemeni kaydetmek için giriş yap.';
 
+  const premiumDescription = isPremium
+    ? 'Premium ayrıcalıkların açık.'
+    : premiumStatus.trialEligible
+    ? 'Planını seç; 3 günlük deneme hediyesiyle reklamsız öğrenmeye başla.'
+    : 'Planını seçerek premiuma geç. Deneme hakkın kullanıldıysa paket hemen aktive olur.';
+
+  const premiumBadgeIcon = isPremium ? ('diamond' as const) : ('sparkles' as const);
+  const premiumCTAIcon = isPremium ? ('shield-checkmark' as const) : ('rocket' as const);
+  const premiumCTALabel = isPremium ? 'Premium Detayları' : 'Premium Ol';
+  const premiumCountdownLabel = isPremium
+    ? premiumStatus.remainingLabel
+      ? `Kalan süre: ${premiumStatus.remainingLabel}`
+      : 'Premium deneyimin aktif'
+    : premiumStatus.trialEligible
+    ? '3 günlük deneme hediyesi seni bekliyor'
+    : 'Plan seçerek premium avantajlarını aç';
+
   const onLogout = async () => {
     if (!isAuthenticated) return;
     await signOut();
@@ -83,6 +120,46 @@ export const ProfileScreen: React.FC = () => {
 
   const onContactPress = () => {
     navigation.navigate('Contact');
+  };
+
+  const handleOpenTerms = () => {
+    Linking.openURL(TERMS_URL).catch(() => {
+      Alert.alert('Bağlantı açılamadı', 'Lütfen daha sonra tekrar dene.');
+    });
+  };
+
+  const handleOpenPrivacy = () => {
+    Linking.openURL(PRIVACY_URL).catch(() => {
+      Alert.alert('Bağlantı açılamadı', 'Lütfen daha sonra tekrar dene.');
+    });
+  };
+
+  const handleConfirmPlan = async (planId: PremiumPlanId) => {
+    if (!premiumStatus.trialEligible) {
+      setPremiumModalVisible(false);
+      Alert.alert(
+        'Plan seçimi yakında',
+        `${PREMIUM_PLAN_LABELS[planId]} planı satın alma akışı aktif olduğunda doğrudan başlatılacak. Deneme hakkını daha önce kullandın.`,
+      );
+      return;
+    }
+
+    setTrialLoading(true);
+    try {
+      await startTrial();
+      await refreshPremiumStatus();
+      await refreshDailyResources();
+      setPremiumModalVisible(false);
+      Alert.alert(
+        'Premium hazır',
+        `${PREMIUM_PLAN_LABELS[planId]} planın 3 günlük deneme hediyesiyle başladı. Plan satın alma adımı yakında aktifleştirilecek.`,
+      );
+    } catch (error) {
+      const message = (error as Error)?.message ?? 'Premium deneme başlatılamadı.';
+      Alert.alert('İşlem başarısız', message);
+    } finally {
+      setTrialLoading(false);
+    }
   };
 
   const confirmDeleteAccount = () => {
@@ -148,6 +225,51 @@ export const ProfileScreen: React.FC = () => {
             />
           </LinearGradient>
 
+          <LinearGradient
+            colors={['rgba(104, 90, 255, 0.28)', 'rgba(49, 206, 167, 0.18)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.premiumCard}
+          >
+            <View style={styles.premiumHeader}>
+              <View style={styles.premiumBadge}>
+                <Ionicons name={premiumBadgeIcon} size={26} color={colors.textPrimary} />
+              </View>
+              <View style={styles.premiumTexts}>
+                <Text style={styles.premiumTitle}>{isPremium ? 'Premium Aktif' : 'Wordford Premium'}</Text>
+                <Text style={styles.premiumDescription}>{premiumDescription}</Text>
+              </View>
+            </View>
+            <View style={styles.premiumFooter}>
+              <Text style={styles.premiumCountdown}>{premiumCountdownLabel}</Text>
+              <PrimaryButton
+                label={premiumCTALabel}
+                onPress={() => setPremiumModalVisible(true)}
+                size="compact"
+                variant={isPremium ? 'success' : 'primary'}
+                style={styles.premiumActionButton}
+                icon={premiumCTAIcon}
+              />
+            </View>
+          </LinearGradient>
+
+          <View style={styles.legalLinks}>
+            <PrimaryButton
+              label="Kullanım Şartları"
+              onPress={handleOpenTerms}
+              variant="ghost"
+              size="compact"
+              icon="document-text-outline"
+            />
+            <PrimaryButton
+              label="Gizlilik Politikası"
+              onPress={handleOpenPrivacy}
+              variant="ghost"
+              size="compact"
+              icon="shield-checkmark-outline"
+            />
+          </View>
+
           {isAuthenticated ? (
             <>
               <PrimaryButton
@@ -211,6 +333,15 @@ export const ProfileScreen: React.FC = () => {
           )}
         </ScrollView>
       </ScreenContainer>
+      <PremiumTrialModal
+        visible={premiumModalVisible}
+        status={premiumStatus}
+        onClose={() => setPremiumModalVisible(false)}
+        onConfirmPlan={handleConfirmPlan}
+        loading={trialLoading}
+        termsUrl={TERMS_URL}
+        privacyUrl={PRIVACY_URL}
+      />
     </GradientBackground>
   );
 };
@@ -284,6 +415,63 @@ const styles = StyleSheet.create({
   rewardButton: {
     marginTop: spacing.sm,
     alignSelf: 'flex-start',
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    justifyContent: 'flex-start',
+  },
+  premiumCard: {
+    borderRadius: spacing.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    gap: spacing.md,
+  },
+  premiumHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  premiumBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(12, 18, 41, 0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  premiumTexts: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  premiumTitle: {
+    ...typography.title,
+    color: colors.textPrimary,
+  },
+  premiumDescription: {
+    ...typography.caption,
+    color: 'rgba(255,255,255,0.78)',
+    lineHeight: 18,
+  },
+  premiumFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    flexWrap: 'wrap',
+  },
+  premiumCountdown: {
+    ...typography.caption,
+    color: colors.accent,
+    flexShrink: 1,
+  },
+  premiumActionButton: {
+    minWidth: 160,
+    flexGrow: 0,
   },
   statCard: {
     flex: 1,

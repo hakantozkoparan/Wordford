@@ -3,17 +3,19 @@ import { Platform, StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 
 import { colors, spacing } from '@/theme';
+import { useAuth } from '@/context/AuthContext';
 
 const IOS_TEST_BANNER_ID = 'ca-app-pub-3940256099942544/9214589741';
 
 type AdMobModule = typeof import('expo-ads-admob');
 
 export const AdBanner: React.FC = () => {
+  const { isPremium } = useAuth();
   const isAdMobAvailable = Platform.OS === 'ios' && Constants.appOwnership !== 'expo';
   const [adMobModule, setAdMobModule] = useState<AdMobModule | null>(null);
 
   useEffect(() => {
-    if (!isAdMobAvailable) {
+    if (!isAdMobAvailable || isPremium) {
       setAdMobModule(null);
       return;
     }
@@ -33,7 +35,11 @@ export const AdBanner: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [isAdMobAvailable]);
+  }, [isAdMobAvailable, isPremium]);
+
+  if (isPremium) {
+    return null;
+  }
 
   const BannerComponent = adMobModule?.AdMobBanner;
 

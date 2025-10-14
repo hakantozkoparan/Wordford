@@ -1,7 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { differenceInCalendarDays, startOfDay } from 'date-fns';
 
-import { DAILY_ENERGY_ALLOCATION, DAILY_REVEAL_TOKENS, STORAGE_KEYS } from '@/config/appConfig';
+import {
+  DAILY_ENERGY_ALLOCATION,
+  DAILY_REVEAL_TOKENS,
+  PREMIUM_DAILY_ENERGY_ALLOCATION,
+  PREMIUM_DAILY_REVEAL_TOKENS,
+  STORAGE_KEYS,
+} from '@/config/appConfig';
+import {
+  GuestPremiumState,
+  ensureGuestPremiumState,
+  isGuestPremiumActive,
+} from '@/services/guestPremiumService';
 
 export interface GuestResources {
   dailyEnergy: number;
@@ -54,22 +65,54 @@ const shouldRefresh = (lastIso: string | null, now: Date) => {
   return differenceInCalendarDays(startOfDay(now), startOfDay(lastDate)) > 0;
 };
 
-export const ensureGuestResources = async (): Promise<GuestResources> => {
+const resolveCaps = (premiumActive: boolean) => ({
+  energy: premiumActive ? PREMIUM_DAILY_ENERGY_ALLOCATION : DAILY_ENERGY_ALLOCATION,
+  reveal: premiumActive ? PREMIUM_DAILY_REVEAL_TOKENS : DAILY_REVEAL_TOKENS,
+});
+
+export const ensureGuestResources = async (
+  premiumState?: GuestPremiumState | null,
+): Promise<GuestResources> => {
+  const resolvedPremiumState = premiumState ?? (await ensureGuestPremiumState());
+  const premiumActive = isGuestPremiumActive(resolvedPremiumState);
+  const caps = resolveCaps(premiumActive);
   const resources = await loadGuestResources();
   const now = new Date();
   let updated = { ...resources };
   let changed = false;
 
   if (shouldRefresh(resources.lastEnergyRefresh, now)) {
-    updated.dailyEnergy = DAILY_ENERGY_ALLOCATION;
+    updated.dailyEnergy = caps.energy;
     updated.lastEnergyRefresh = now.toISOString();
     changed = true;
   }
 
   if (shouldRefresh(resources.lastRevealRefresh, now)) {
-    updated.dailyRevealTokens = DAILY_REVEAL_TOKENS;
+    updated.dailyRevealTokens = caps.reveal;
     updated.lastRevealRefresh = now.toISOString();
     changed = true;
+  }
+
+  if (premiumActive) {
+    if (updated.dailyEnergy < caps.energy) {
+      updated.dailyEnergy = caps.energy;
+      updated.lastEnergyRefresh = now.toISOString();
+      changed = true;
+    }
+    if (updated.dailyRevealTokens < caps.reveal) {
+      updated.dailyRevealTokens = caps.reveal;
+      updated.lastRevealRefresh = now.toISOString();
+      changed = true;
+    }
+  } else {
+    if (updated.dailyEnergy > caps.energy) {
+      updated.dailyEnergy = caps.energy;
+      changed = true;
+    }
+    if (updated.dailyRevealTokens > caps.reveal) {
+      updated.dailyRevealTokens = caps.reveal;
+      changed = true;
+    }
   }
 
   if (changed) {

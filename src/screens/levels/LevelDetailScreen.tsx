@@ -37,7 +37,7 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     recordAnswer,
     saveExampleSentence,
   } = useWords();
-  const { profile, firebaseUser, guestResources, spendEnergy, spendRevealToken } = useAuth();
+  const { profile, firebaseUser, guestResources, spendEnergy, spendRevealToken, isPremium } = useAuth();
   const { openRewardsModal, playRewardedAd } = useRewards();
   const [index, setIndex] = useState(route.params.index ?? 0);
   const [revealed, setRevealed] = useState(false);
@@ -91,7 +91,6 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const totalEnergy = Math.max(firebaseUser ? authenticatedEnergy : guestEnergy, 0);
   const totalRevealTokens = Math.max(firebaseUser ? authenticatedReveal : guestReveal, 0);
-
   useEffect(() => {
     if (words.length === 0) {
       if (index !== 0) {
@@ -203,7 +202,7 @@ export const LevelDetailScreen: React.FC<Props> = ({ route, navigation }) => {
       setError((err as Error).message ?? 'Cevap kaydedilemedi.');
     }
 
-    if (attemptRegistered && registerAttemptAndShouldShowAd()) {
+    if (!isPremium && attemptRegistered && registerAttemptAndShouldShowAd()) {
       try {
         console.info('Deneme limiti aşıldı, ödüllü reklam başlatılıyor.');
         await playRewardedAd('energy');

@@ -7,6 +7,7 @@ import { WordProvider } from '@/context/WordContext';
 import { AppNavigator } from '@/navigation/AppNavigator';
 import { NotificationInitializer } from '@/components/NotificationInitializer';
 import { RewardProvider } from '@/context/RewardContext';
+import { OnboardingExperience } from '@/components/OnboardingExperience';
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
             <WordProvider>
               <StatusBar style="light" />
               <AppNavigator />
+              <OnboardingExperience />
             </WordProvider>
           </RewardProvider>
         </AuthProvider>

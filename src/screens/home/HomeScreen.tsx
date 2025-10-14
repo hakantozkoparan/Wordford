@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -24,6 +24,9 @@ import { AppStackParamList } from '@/navigation/types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { DAILY_WORD_GOAL, STORAGE_KEYS } from '@/config/appConfig';
 import { toDate, toIsoDate } from '@/utils/datetime';
+import { PremiumTrialModal } from '@/components/PremiumTrialModal';
+import type { PremiumPlanId } from '@/types/premiumPlans';
+import { PREMIUM_PLAN_LABELS } from '@/constants/premiumPlans';
 
 const formatCompactNumber = (value: number) => {
   if (value >= 1000) {
@@ -48,11 +51,23 @@ const calculateLevelProgress = (
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
-  const { profile, firebaseUser, guestResources, guestStats } = useAuth();
+  const {
+    profile,
+    firebaseUser,
+    guestResources,
+    guestStats,
+    premiumStatus,
+    isPremium,
+    startTrial,
+    refreshPremiumStatus,
+    refreshDailyResources,
+  } = useAuth();
   const { openRewardsModal } = useRewards();
   const { wordsByLevel, progressMap, loadLevelWords } = useWords();
   const [streakModalVisible, setStreakModalVisible] = useState(false);
   const [streakModalVariant, setStreakModalVariant] = useState<'celebration' | 'reset' | null>(null);
+  const [premiumModalVisible, setPremiumModalVisible] = useState(false);
+  const [trialLoading, setTrialLoading] = useState(false);
   const streakValue = firebaseUser
     ? profile?.currentStreak ?? 0
     : guestStats?.currentStreak ?? 0;
@@ -214,6 +229,34 @@ export const HomeScreen: React.FC = () => {
   const formattedDailyProgress = `${formatCompactNumber(todaysMastered)}/${formatCompactNumber(dailyGoal)}`;
   const formattedFavorites = formatCompactNumber(favoriteCount);
 
+  const handleConfirmPlan = async (planId: PremiumPlanId) => {
+    if (!premiumStatus.trialEligible) {
+      setPremiumModalVisible(false);
+      Alert.alert(
+        'Plan seçimi yakında',
+        `${PREMIUM_PLAN_LABELS[planId]} planı satın alma akışı aktif olduğunda doğrudan başlatılacak. Deneme hakkını daha önce kullandın.`,
+      );
+      return;
+    }
+
+    setTrialLoading(true);
+    try {
+      await startTrial();
+      await refreshPremiumStatus();
+      await refreshDailyResources();
+      setPremiumModalVisible(false);
+      Alert.alert(
+        'Premium hazır',
+        `${PREMIUM_PLAN_LABELS[planId]} planın 3 günlük deneme hediyesiyle başladı. Plan satın alma adımı yakında aktifleştirilecek.`,
+      );
+    } catch (error) {
+      const message = (error as Error)?.message ?? 'Premium deneme başlatılamadı.';
+      Alert.alert('İşlem başarısız', message);
+    } finally {
+      setTrialLoading(false);
+    }
+  };
+
   return (
     <GradientBackground paddingTop={spacing.md}>
       <ScreenContainer style={styles.container} edges={['top']}>
@@ -272,13 +315,24 @@ export const HomeScreen: React.FC = () => {
                   <ResourcePill label="Enerji" value={availableEnergy} icon="flash" />
                   <ResourcePill label="Cevabı Göster" value={availableRevealTokens} icon="eye" />
                 </View>
-                <PrimaryButton
-                  label="Kredi Kazan"
-                  onPress={() => openRewardsModal()}
-                  size="compact"
-                  style={styles.rewardButton}
-                  icon="gift"
-                />
+                <View style={styles.heroActions}>
+                  <PrimaryButton
+                    label={isPremium ? 'Premium Aktif' : 'Premium Ol'}
+                    onPress={() => setPremiumModalVisible(true)}
+                    size="compact"
+                    icon={isPremium ? 'shield-checkmark' : 'rocket'}
+                    variant={isPremium ? 'success' : 'primary'}
+                    style={styles.heroPremiumButton}
+                  />
+                  <PrimaryButton
+                    label="Kredi Kazan"
+                    onPress={() => openRewardsModal()}
+                    size="compact"
+                    style={styles.rewardButton}
+                    icon="gift"
+                    variant="secondary"
+                  />
+                </View>
               </View>
             </LinearGradient>
           </View>
@@ -330,6 +384,15 @@ export const HomeScreen: React.FC = () => {
           setStreakModalVisible(false);
           setStreakModalVariant(null);
         }}
+      />
+      <PremiumTrialModal
+        visible={premiumModalVisible}
+        status={premiumStatus}
+        onClose={() => setPremiumModalVisible(false)}
+        onConfirmPlan={handleConfirmPlan}
+        loading={trialLoading}
+        termsUrl="https://wordford.app/terms"
+        privacyUrl="https://wordford.app/privacy"
       />
     </GradientBackground>
   );
@@ -430,10 +493,16 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginTop: spacing.xs,
   },
-  rewardButton: {
+  heroActions: {
+    width: '100%',
+    gap: spacing.sm,
     marginTop: spacing.sm,
-    alignSelf: 'center',
-    minWidth: 200,
+  },
+  heroPremiumButton: {
+    alignSelf: 'stretch',
+  },
+  rewardButton: {
+    alignSelf: 'stretch',
   },
   progressCard: {
     backgroundColor: colors.card,

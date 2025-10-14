@@ -6,6 +6,8 @@ export type UserRole = 'member' | 'admin';
 
 export type SubscriptionTier = 'none' | 'credits' | 'adFree' | 'creditsAndAdFree';
 
+export type PremiumSource = 'trial' | 'subscription';
+
 export interface DeviceMetadata {
   deviceId: string;
   brand: string | null;
@@ -53,6 +55,10 @@ export interface UserProfile {
   bonusRevealTokens?: number;
   lastEnergyRefresh?: Timestamp | null;
   lastRevealRefresh?: Timestamp | null;
+  premiumActiveUntil?: Timestamp | null;
+  premiumStartedAt?: Timestamp | null;
+  premiumSource?: PremiumSource | null;
+  premiumTrialUsed?: boolean;
   subscriptionTier: SubscriptionTier;
   hasAdFree: boolean;
   lastLoginAt?: Timestamp | null;

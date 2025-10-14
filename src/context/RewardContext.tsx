@@ -26,14 +26,13 @@ export type RewardTab = 'energy' | 'reveal';
 const RewardContext = createContext<RewardContextValue | undefined>(undefined);
 
 export const RewardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { firebaseUser, refreshDailyResources, refreshGuestStats } = useAuth();
+  const { firebaseUser, refreshDailyResources, refreshGuestStats, isPremium } = useAuth();
   const [isModalVisible, setModalVisible] = useState(false);
   const [isProcessing, setProcessing] = useState(false);
   const [initialTab, setInitialTab] = useState<RewardTab>('energy');
   const [processingType, setProcessingType] = useState<RewardTab | null>(null);
   const sessionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isProcessingRef = useRef(isProcessing);
-
   const closeRewardsModal = useCallback(() => {
     if (isProcessing) return;
     setModalVisible(false);
@@ -113,6 +112,9 @@ export const RewardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
     clearSessionTimer();
+    if (isPremium) {
+      return;
+    }
     if (AppState.currentState !== 'active') {
       return;
     }
@@ -133,7 +135,7 @@ export const RewardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       })();
     }, SESSION_REWARDED_INTERVAL_MS);
-  }, [clearSessionTimer, playRewardedAd]);
+  }, [clearSessionTimer, playRewardedAd, isPremium]);
 
   useEffect(() => {
     isProcessingRef.current = isProcessing;
@@ -156,7 +158,7 @@ export const RewardProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       clearSessionTimer();
       subscription.remove();
     };
-  }, [scheduleSessionTimer, clearSessionTimer]);
+  }, [scheduleSessionTimer, clearSessionTimer, isPremium]);
 
   const value = useMemo(
     () => ({

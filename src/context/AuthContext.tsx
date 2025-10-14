@@ -17,6 +17,13 @@ import { ensureGuestStats, type GuestStats } from '@/services/guestStatsService'
 import { updateDailyStreak } from '@/services/userStatsService';
 import { getDeviceMetadata } from '@/utils/device';
 import { UserProfile } from '@/types/models';
+import {
+  GuestPremiumState,
+  ensureGuestPremiumState,
+  startGuestPremiumTrial,
+} from '@/services/guestPremiumService';
+import { PremiumStatus, getPremiumStatus } from '@/utils/subscription';
+import { startPremiumTrial } from '@/services/premiumService';
 
 interface RegisterForm {
   email: string;
@@ -47,6 +54,11 @@ interface AuthContextValue {
   guestResources: GuestResources | null;
   guestStats: GuestStats | null;
   refreshGuestStats: () => Promise<void>;
+  guestPremium: GuestPremiumState | null;
+  refreshPremiumStatus: () => Promise<void>;
+  premiumStatus: PremiumStatus;
+  isPremium: boolean;
+  startTrial: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -59,6 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
   const [guestResources, setGuestResourcesState] = useState<GuestResources | null>(null);
   const [guestStats, setGuestStatsState] = useState<GuestStats | null>(null);
+  const [guestPremium, setGuestPremiumState] = useState<GuestPremiumState | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -71,21 +84,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!firebaseUser) {
       setProfile(null);
-      Promise.all([ensureGuestResources(), ensureGuestStats()])
-        .then(([resources, stats]) => {
+      (async () => {
+        try {
+          const premiumState = await ensureGuestPremiumState();
+          setGuestPremiumState(premiumState);
+          const [resources, stats] = await Promise.all([
+            ensureGuestResources(premiumState),
+            ensureGuestStats(),
+          ]);
           setGuestResourcesState(resources);
           setGuestStatsState(stats);
-        })
-        .catch((err) => {
+        } catch (err) {
           console.warn('Misafir verileri yüklenemedi:', err);
           setGuestResourcesState(null);
           setGuestStatsState(null);
-        });
+          setGuestPremiumState(null);
+        }
+      })();
       return;
     }
 
     setGuestResourcesState(null);
     setGuestStatsState(null);
+    setGuestPremiumState(null);
     const userDoc = doc(db, FIREBASE_COLLECTIONS.users, firebaseUser.uid);
     const unsubscribe = onSnapshot(userDoc, async (snapshot) => {
       if (!snapshot.exists()) {
@@ -221,7 +242,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshDailyResources = useCallback(async () => {
     if (!firebaseUser) {
-      const refreshed = await ensureGuestResources();
+      const premiumState = await ensureGuestPremiumState();
+      setGuestPremiumState(premiumState);
+      const refreshed = await ensureGuestResources(premiumState);
       setGuestResourcesState(refreshed);
       return;
     }
@@ -235,6 +258,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const stats = await ensureGuestStats();
     setGuestStatsState(stats);
   }, [firebaseUser]);
+
+  const refreshPremiumStatus = useCallback(async () => {
+    if (firebaseUser) {
+      return;
+    }
+    const premium = await ensureGuestPremiumState();
+    setGuestPremiumState(premium);
+  }, [firebaseUser]);
+
+  const startTrial = useCallback(async () => {
+    if (firebaseUser) {
+      await startPremiumTrial(firebaseUser.uid);
+    } else {
+      const updated = await startGuestPremiumTrial();
+      setGuestPremiumState(updated);
+    }
+    await refreshDailyResources();
+    if (!firebaseUser) {
+      const ensured = await ensureGuestPremiumState();
+      setGuestPremiumState(ensured);
+    }
+  }, [firebaseUser, refreshDailyResources]);
+
+  const premiumStatus = useMemo(
+    () => getPremiumStatus(profile, guestPremium),
+    [profile, guestPremium],
+  );
+
+  const isPremium = premiumStatus.isPremium;
 
   const spendEnergy = useCallback(
     async (amount = 1) => {
@@ -274,6 +326,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       guestResources,
       guestStats,
       refreshGuestStats,
+      guestPremium,
+      refreshPremiumStatus,
+      premiumStatus,
+      isPremium,
+      startTrial,
     }),
     [
       firebaseUser,
@@ -291,6 +348,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       guestResources,
       guestStats,
       refreshGuestStats,
+      guestPremium,
+      refreshPremiumStatus,
+      premiumStatus,
+      isPremium,
+      startTrial,
     ],
   );
 
