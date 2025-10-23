@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Wordford",
-    "slug": "Wordford",
+    "slug": "wordford",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/Wordford_Icon.png",
@@ -16,8 +16,18 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSUserNotificationUsageDescription": "Günlük kelime hatırlatmalarını gönderebilmemiz için bildirim iznine ihtiyaç duyuyoruz.",
-        "NSUserTrackingUsageDescription": "Takip izni, reklam performansını ölçmemize ve sana daha ilgili içerikler sunmamıza yardımcı olur."
-      }
+        "NSUserTrackingUsageDescription": "Takip izni, reklam performansını ölçmemize ve sana daha ilgili içerikler sunmamıza yardımcı olur.",
+        "SKAdNetworkItems": [
+          {
+            "SKAdNetworkIdentifier": "cstr6suwn9.skadnetwork"
+          },
+          {
+            "SKAdNetworkIdentifier": "cstr6suwn9.skadnetwork"
+          }
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.hkntzkprn.wordford"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +35,10 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "com.google.android.gms.permission.AD_ID"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -36,9 +49,18 @@
       "expo-notifications",
       "expo-tracking-transparency",
       [
-        "expo-ads-admob",
+        "expo-build-properties",
         {
-          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511",
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713"
         }
       ]
     ],

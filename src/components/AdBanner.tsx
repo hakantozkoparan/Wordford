@@ -6,59 +6,83 @@ import { colors, spacing } from '@/theme';
 import { useAuth } from '@/context/AuthContext';
 
 const IOS_TEST_BANNER_ID = 'ca-app-pub-3940256099942544/9214589741';
+const ANDROID_TEST_BANNER_ID = 'ca-app-pub-3940256099942544/6300978111';
 
-type AdMobModule = typeof import('expo-ads-admob');
+type GoogleMobileAdsModule = typeof import('react-native-google-mobile-ads');
+
+const isGoogleMobileAdsAvailable = () =>
+  Platform.OS !== 'web' && Constants.appOwnership !== 'expo';
 
 export const AdBanner: React.FC = () => {
   const { isPremium } = useAuth();
-  const isAdMobAvailable = Platform.OS === 'ios' && Constants.appOwnership !== 'expo';
-  const [adMobModule, setAdMobModule] = useState<AdMobModule | null>(null);
+  const [adsModule, setAdsModule] = useState<GoogleMobileAdsModule | null>(null);
+  const adsSupported = isGoogleMobileAdsAvailable();
 
   useEffect(() => {
-    if (!isAdMobAvailable || isPremium) {
-      setAdMobModule(null);
+    if (!adsSupported || isPremium) {
+      setAdsModule(null);
       return;
     }
+
     let isMounted = true;
-    import('expo-ads-admob')
+
+    import('react-native-google-mobile-ads')
       .then((module) => {
         if (!isMounted) {
           return;
         }
-        module.setTestDeviceIDAsync('EMULATOR').catch(() => undefined);
-        setAdMobModule(module);
+
+        const mobileAdsInstance = module.default();
+        mobileAdsInstance
+          .setRequestConfiguration({ testDeviceIdentifiers: ['EMULATOR'] })
+          .catch(() => undefined);
+        mobileAdsInstance.initialize().catch(() => undefined);
+
+        setAdsModule(module);
       })
       .catch((error) => {
-        console.debug('AdMob modülü yüklenemedi:', error);
+        console.debug('Google Mobile Ads modülü yüklenemedi:', error);
       });
 
     return () => {
       isMounted = false;
     };
-  }, [isAdMobAvailable, isPremium]);
+  }, [adsSupported, isPremium]);
 
   if (isPremium) {
     return null;
   }
 
-  const BannerComponent = adMobModule?.AdMobBanner;
-
-  if (!isAdMobAvailable || !BannerComponent) {
+  if (!adsSupported || !adsModule) {
     return (
       <View style={[styles.container, styles.placeholder]}>
-        <Text style={styles.placeholderText}>Reklam alanı (yalnızca iOS buildlerinde görünür)</Text>
+        <Text style={styles.placeholderText}>Reklam alanı (yalnızca cihaz buildlerinde görünür)</Text>
       </View>
     );
   }
 
+  const BannerAd = adsModule.BannerAd;
+  const BannerAdSize = adsModule.BannerAdSize;
+  const TestIds = adsModule.TestIds;
+
+  const adUnitId = __DEV__
+    ? TestIds.BANNER
+    : Platform.select({
+        ios: IOS_TEST_BANNER_ID,
+        android: ANDROID_TEST_BANNER_ID,
+      }) ?? IOS_TEST_BANNER_ID;
+
+  // BannerAd bileşenini React bileşeni olarak kullanabilmek için
+  const BannerAdComponent = BannerAd as React.ComponentType<any>;
+
   return (
     <View style={styles.container}>
-      <BannerComponent
-        bannerSize="smartBannerPortrait"
-        adUnitID={IOS_TEST_BANNER_ID}
-        servePersonalizedAds
-        onDidFailToReceiveAdWithError={(error) => {
-          console.debug('AdMob banner yüklenemedi:', error);
+      <BannerAdComponent
+        unitId={adUnitId}
+        size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+        requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+        onAdFailedToLoad={(error: any) => {
+          console.debug('Banner reklamı yüklenemedi:', error);
         }}
       />
     </View>

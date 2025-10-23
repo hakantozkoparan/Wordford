@@ -4,25 +4,39 @@ import Constants from 'expo-constants';
 const IOS_TEST_REWARDED_ID = 'ca-app-pub-3940256099942544/1712485313';
 const ANDROID_TEST_REWARDED_ID = 'ca-app-pub-3940256099942544/5224354917';
 
-type RewardedModule = typeof import('expo-ads-admob');
+type GoogleMobileAdsModule = typeof import('react-native-google-mobile-ads');
 
-let rewardedModule: RewardedModule | null = null;
+let googleMobileAdsModule: GoogleMobileAdsModule | null = null;
 
-const getRewardedModule = async (): Promise<RewardedModule | null> => {
-  if (rewardedModule) {
-    return rewardedModule;
+const loadGoogleMobileAdsModule = async (): Promise<GoogleMobileAdsModule | null> => {
+  if (googleMobileAdsModule) {
+    return googleMobileAdsModule;
   }
+
   try {
-    rewardedModule = await import('expo-ads-admob');
-    return rewardedModule;
+    const module = await import('react-native-google-mobile-ads');
+    const mobileAdsInstance = module.default();
+
+    mobileAdsInstance
+      .setRequestConfiguration({ testDeviceIdentifiers: ['EMULATOR'] })
+      .catch(() => undefined);
+    mobileAdsInstance.initialize().catch(() => undefined);
+
+    googleMobileAdsModule = module;
+    return module;
   } catch (error) {
-    console.debug('Rewarded ad modülü yüklenemedi:', error);
+    console.debug('Google Mobile Ads modülü yüklenemedi:', error);
     return null;
   }
 };
 
-const getAdUnitId = () =>
-  Platform.OS === 'ios' ? IOS_TEST_REWARDED_ID : ANDROID_TEST_REWARDED_ID;
+const getAdUnitId = (module: GoogleMobileAdsModule) => {
+  if (__DEV__) {
+    return module.TestIds.REWARDED;
+  }
+
+  return Platform.OS === 'ios' ? IOS_TEST_REWARDED_ID : ANDROID_TEST_REWARDED_ID;
+};
 
 export interface ShowRewardedAdOptions {
   onStarted?: () => void;
@@ -35,74 +49,72 @@ export const showRewardedAd = async (options?: ShowRewardedAdOptions) => {
     );
   }
 
-  const module = await getRewardedModule();
+  const module = await loadGoogleMobileAdsModule();
   if (!module) {
     throw new Error('Reklam modülü yüklenemedi.');
   }
 
-  const { AdMobRewarded, setTestDeviceIDAsync } = module;
-
-  if (!AdMobRewarded || typeof AdMobRewarded.requestAdAsync !== 'function') {
-    throw new Error('Bu platformda ödüllü reklamlar desteklenmiyor.');
-  }
-
-  await setTestDeviceIDAsync?.('EMULATOR').catch(() => undefined);
-
-  try {
-    await AdMobRewarded.setAdUnitID(getAdUnitId());
-  } catch (error) {
-    throw new Error('Reklam birimi yapılandırılırken bir hata oluştu.');
-  }
-
-  await AdMobRewarded.removeAllListeners();
+  const adUnitId = getAdUnitId(module);
+  const rewardedAd = module.RewardedAd.createForAdRequest(adUnitId, {
+    requestNonPersonalizedAdsOnly: false,
+  });
 
   return new Promise<void>((resolve, reject) => {
     let rewardEarned = false;
 
-    const onReward = () => {
-      rewardEarned = true;
-    };
-
-    const onClose = () => {
-      cleanup();
-      if (rewardEarned) {
-        resolve();
-      } else {
-        reject(new Error('Reklam tamamlanmadı.'));
-      }
-    };
-
-    const onError = (error: Error) => {
-      cleanup();
-      reject(error);
-    };
+    const cleanupCallbacks: Array<() => void> = [];
 
     const cleanup = () => {
-      try {
-        AdMobRewarded.removeAllListeners();
-      } catch (error) {
-        // ignore
+      while (cleanupCallbacks.length) {
+        const unsubscribe = cleanupCallbacks.pop();
+        try {
+          unsubscribe?.();
+        } catch {
+          // ignore
+        }
       }
     };
 
-    AdMobRewarded.addEventListener('rewardedVideoUserDidEarnReward', onReward);
-    AdMobRewarded.addEventListener('rewardedVideoDidFailToLoad', ({ message }) => {
-      onError(new Error(message ?? 'Reklam yüklenemedi.'));
-    });
-    AdMobRewarded.addEventListener('rewardedVideoDidFailToPresent', ({ message }) => {
-      onError(new Error(message ?? 'Reklam gösterilemedi.'));
-    });
-    AdMobRewarded.addEventListener('rewardedVideoDidDismiss', onClose);
+    const fail = (error: unknown) => {
+      cleanup();
+      reject(error instanceof Error ? error : new Error('Reklam yüklenemedi.'));
+    };
 
-    options?.onStarted?.();
+    cleanupCallbacks.push(
+      rewardedAd.addAdEventListener(module.RewardedAdEventType.LOADED, () => {
+        options?.onStarted?.();
+        rewardedAd.show().catch(fail);
+      }),
+    );
 
-    (async () => {
-      try {
-        await AdMobRewarded.requestAdAsync({ servePersonalizedAds: true });
-        await AdMobRewarded.showAdAsync();
-      } catch (error) {
-        onError(error as Error);
-      }
-    })();
+    cleanupCallbacks.push(
+      rewardedAd.addAdEventListener(module.RewardedAdEventType.EARNED_REWARD, () => {
+        rewardEarned = true;
+      }),
+    );
+
+    cleanupCallbacks.push(
+      rewardedAd.addAdEventListener(module.AdEventType.ERROR, (event) => {
+        const message = (event as Error | { message?: string })?.message ?? 'Reklam yüklenemedi.';
+        fail(new Error(message));
+      }),
+    );
+
+    cleanupCallbacks.push(
+      rewardedAd.addAdEventListener(module.AdEventType.CLOSED, () => {
+        cleanup();
+        if (rewardEarned) {
+          resolve();
+        } else {
+          reject(new Error('Reklam tamamlanmadı.'));
+        }
+      }),
+    );
+
+    try {
+      rewardedAd.load();
+    } catch (error) {
+      fail(error);
+    }
   });
 };
