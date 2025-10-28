@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { Alert } from 'react-native';
 import { AuthError, User, onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { getTrackingPermissionsAsync } from 'expo-tracking-transparency';
 
 import { FIREBASE_COLLECTIONS } from '@/config/appConfig';
 import { auth, db } from '@/config/firebase';
@@ -67,6 +68,7 @@ interface AuthContextValue {
   premiumStatus: PremiumStatus;
   isPremium: boolean;
   startTrial: () => Promise<void>;
+  updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -292,6 +294,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [firebaseUser, refreshDailyResources]);
 
+  const updateUserProfile = useCallback(
+    async (updates: Partial<UserProfile>) => {
+      if (!firebaseUser?.uid) return;
+
+      try {
+        const userRef = doc(db, FIREBASE_COLLECTIONS.users, firebaseUser.uid);
+        await updateDoc(userRef, updates);
+        setProfile((prev) => (prev ? { ...prev, ...updates } : null));
+      } catch (error) {
+        console.warn('Profil güncelleme hatası:', error);
+      }
+    },
+    [firebaseUser?.uid],
+  );
+
+  useEffect(() => {
+    if (firebaseUser?.uid && profile) {
+      // ATS iznini kontrol et ve Firebase'e kaydet
+      getTrackingPermissionsAsync().then(({ status }) => {
+        const atsGranted = status === 'granted';
+        if (profile.atsGranted !== atsGranted) {
+          updateUserProfile({ atsGranted });
+        }
+      }).catch(console.warn);
+    }
+  }, [firebaseUser?.uid, profile, updateUserProfile]);
+
   const premiumStatus = useMemo(
     () => getPremiumStatus(profile, guestPremium),
     [profile, guestPremium],
@@ -331,6 +360,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       login,
       signOut,
       deleteAccount,
+      updateUserProfile,
       refreshDailyResources,
       spendEnergy,
       spendRevealToken,
@@ -353,6 +383,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       login,
       signOut,
       deleteAccount,
+      updateUserProfile,
       refreshDailyResources,
       spendEnergy,
       spendRevealToken,

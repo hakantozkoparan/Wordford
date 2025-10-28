@@ -11,7 +11,7 @@ import { initializeNotifications, syncUserPushToken } from '@/services/notificat
 import { STORAGE_KEYS } from '@/config/appConfig';
 
 export const NotificationInitializer: React.FC = () => {
-  const { firebaseUser, profile } = useAuth();
+  const { firebaseUser, profile, updateUserProfile } = useAuth();
 
   useEffect(() => {
     if (Platform.OS !== 'ios') {
@@ -36,6 +36,11 @@ export const NotificationInitializer: React.FC = () => {
           
           if (__DEV__) {
             Alert.alert('ATS Debug', `ATS izin sonucu: ${JSON.stringify(result)}`);
+          }
+
+          // İzin verildiğinde Firebase'e kaydet (eğer user varsa)
+          if (result.status === 'granted' && firebaseUser?.uid) {
+            updateUserProfile({ atsGranted: true });
           }
           
           // Storage'a kaydet (bir daha sorma)

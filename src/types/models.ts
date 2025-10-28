@@ -71,6 +71,8 @@ export interface UserProfile {
     achievements?: boolean;
     marketing?: boolean;
   };
+  // ATS izni bilgisi
+  atsGranted?: boolean;
   // İstatistikler
   totalWordsLearned?: number;
   totalWordsUpdatedAt?: Timestamp | null;
