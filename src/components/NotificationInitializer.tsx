@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getTrackingPermissionsAsync,
@@ -21,33 +21,24 @@ export const NotificationInitializer: React.FC = () => {
     const requestTrackingPermission = async () => {
       try {
         const { status, canAskAgain } = await getTrackingPermissionsAsync();
-        console.log('ATS izin durumu:', { status, canAskAgain });
-        const normalizedStatus = status.toLowerCase?.() ?? status;
+        
+        if (__DEV__) {
+          Alert.alert('ATS Debug', `İzin durumu: ${status}, canAskAgain: ${canAskAgain}`);
+        }
 
-        if (normalizedStatus === 'not-determined' || normalizedStatus === 'undetermined') {
-          const alreadyPrompted = await AsyncStorage.getItem(STORAGE_KEYS.trackingPromptShown);
-          console.log('ATS zaten sorulmuş mu:', alreadyPrompted);
-          if (alreadyPrompted === 'true' || !canAskAgain) {
-            console.log('ATS izni sorulmayacak');
-            return;
+        // Sadece undetermined ise sor (ilk kez)
+        if (status === 'undetermined' && canAskAgain) {
+          if (__DEV__) {
+            Alert.alert('ATS Debug', 'ATS izni isteniyor...');
           }
-
-          console.log('ATS izni isteniyor...');
+          
           const result = await requestTrackingPermissionsAsync();
-          console.log('ATS izin sonucu:', result);
-          await AsyncStorage.setItem(STORAGE_KEYS.trackingPromptShown, 'true');
-          return;
-        }
-
-        if (normalizedStatus === 'denied' && canAskAgain) {
-          console.log('ATS izni reddedilmiş, tekrar soruluyor...');
-          const result = await requestTrackingPermissionsAsync();
-          console.log('ATS izin tekrar sonucu:', result);
-          await AsyncStorage.setItem(STORAGE_KEYS.trackingPromptShown, 'true');
-        }
-
-        if (normalizedStatus !== 'not-determined' && normalizedStatus !== 'undetermined') {
-          console.log('ATS izni zaten belirlenmiş:', normalizedStatus);
+          
+          if (__DEV__) {
+            Alert.alert('ATS Debug', `ATS izin sonucu: ${JSON.stringify(result)}`);
+          }
+          
+          // Storage'a kaydet (bir daha sorma)
           await AsyncStorage.setItem(STORAGE_KEYS.trackingPromptShown, 'true');
         }
       } catch (error) {
@@ -62,10 +53,13 @@ export const NotificationInitializer: React.FC = () => {
       await initializeNotifications().catch((error) => {
         console.warn('Bildirimler başlatılırken hata oluştu:', error);
       });
-      console.log('Bildirim izni tamamlandı, ATS izni isteniyor...');
+      console.log('Bildirim izni tamamlandı');
       
-      // Bildirim izni tamamlandıktan hemen sonra ATS iznini iste
-      requestTrackingPermission();
+      // Uygulama tamamen yüklenince ATS iznini iste (2 saniye bekle)
+      setTimeout(() => {
+        console.log('ATS izni için bekleme tamamlandı, şimdi isteniyor...');
+        requestTrackingPermission();
+      }, 2000);
     };
 
     initializePermissions();

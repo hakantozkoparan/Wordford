@@ -57,7 +57,8 @@
           "iosAppId": "ca-app-pub-3940256099942544~1458002511",
           "androidAppId": "ca-app-pub-3940256099942544~3347511713"
         }
-      ]
+      ],
+      "expo-tracking-transparency"
     ],
     "extra": {
       "eas": {

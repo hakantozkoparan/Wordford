@@ -4,17 +4,16 @@ import Constants from 'expo-constants';
 const IOS_TEST_REWARDED_ID = 'ca-app-pub-3940256099942544/1712485313';
 const ANDROID_TEST_REWARDED_ID = 'ca-app-pub-3940256099942544/5224354917';
 
-type GoogleMobileAdsModule = typeof import('react-native-google-mobile-ads');
+let googleMobileAdsModule: any = null;
 
-let googleMobileAdsModule: GoogleMobileAdsModule | null = null;
-
-const loadGoogleMobileAdsModule = async (): Promise<GoogleMobileAdsModule | null> => {
+const loadGoogleMobileAdsModule = () => {
   if (googleMobileAdsModule) {
     return googleMobileAdsModule;
   }
 
   try {
-    const module = await import('react-native-google-mobile-ads');
+    // Static import yerine require kullan
+    const module = require('react-native-google-mobile-ads');
     const mobileAdsInstance = module.default();
 
     mobileAdsInstance
@@ -30,7 +29,7 @@ const loadGoogleMobileAdsModule = async (): Promise<GoogleMobileAdsModule | null
   }
 };
 
-const getAdUnitId = (module: GoogleMobileAdsModule) => {
+const getAdUnitId = (module: any) => {
   if (__DEV__) {
     return module.TestIds.REWARDED;
   }
@@ -49,7 +48,7 @@ export const showRewardedAd = async (options?: ShowRewardedAdOptions) => {
     );
   }
 
-  const module = await loadGoogleMobileAdsModule();
+  const module = loadGoogleMobileAdsModule();
   if (!module) {
     throw new Error('Reklam modülü yüklenemedi.');
   }
@@ -94,7 +93,7 @@ export const showRewardedAd = async (options?: ShowRewardedAdOptions) => {
     );
 
     cleanupCallbacks.push(
-      rewardedAd.addAdEventListener(module.AdEventType.ERROR, (event) => {
+      rewardedAd.addAdEventListener(module.AdEventType.ERROR, (event: any) => {
         const message = (event as Error | { message?: string })?.message ?? 'Reklam yüklenemedi.';
         fail(new Error(message));
       }),
