@@ -128,3 +128,8 @@ export const ensureGuestStats = async (): Promise<GuestStats> => {
   }
   return stats;
 };
+
+export const updateGuestDailyStreak = async (): Promise<void> => {
+  const now = new Date();
+  await recordGuestActivity(now);
+};

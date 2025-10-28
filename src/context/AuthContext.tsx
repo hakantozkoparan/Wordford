@@ -13,7 +13,15 @@ import {
   ensureGuestResources,
   type GuestResources,
 } from '@/services/guestResourceService';
-import { ensureGuestStats, type GuestStats } from '@/services/guestStatsService';
+import {
+  clearGuestStats,
+  ensureGuestStats,
+  GuestStats,
+  incrementGuestMastered,
+  loadGuestStats,
+  recordGuestActivity,
+  updateGuestDailyStreak,
+} from '@/services/guestStatsService';
 import { updateDailyStreak } from '@/services/userStatsService';
 import { getDeviceMetadata } from '@/utils/device';
 import { UserProfile } from '@/types/models';
@@ -121,13 +129,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [firebaseUser]);
 
   useEffect(() => {
-    if (!firebaseUser) {
-      return;
+    if (firebaseUser) {
+      updateDailyStreak(firebaseUser.uid).catch((error) => {
+        console.warn('Günlük seri güncellenemedi:', error);
+      });
+    } else {
+      // Misafir kullanıcılar için de günlük streak güncellemesi
+      updateGuestDailyStreak().catch((error) => {
+        console.warn('Misafir günlük seri güncellenemedi:', error);
+      });
     }
-
-    updateDailyStreak(firebaseUser.uid).catch((error) => {
-      console.warn('Günlük seri güncellenemedi:', error);
-    });
   }, [firebaseUser?.uid]);
 
   const register = useCallback(async (form: RegisterForm) => {

@@ -20,31 +20,55 @@ export const NotificationInitializer: React.FC = () => {
 
     const requestTrackingPermission = async () => {
       try {
-        const trackingStatus = await getTrackingPermissionsAsync();
-        if (trackingStatus.status !== 'undetermined') {
+        const { status, canAskAgain } = await getTrackingPermissionsAsync();
+        console.log('ATS izin durumu:', { status, canAskAgain });
+        const normalizedStatus = status.toLowerCase?.() ?? status;
+
+        if (normalizedStatus === 'not-determined' || normalizedStatus === 'undetermined') {
+          const alreadyPrompted = await AsyncStorage.getItem(STORAGE_KEYS.trackingPromptShown);
+          console.log('ATS zaten sorulmuş mu:', alreadyPrompted);
+          if (alreadyPrompted === 'true' || !canAskAgain) {
+            console.log('ATS izni sorulmayacak');
+            return;
+          }
+
+          console.log('ATS izni isteniyor...');
+          const result = await requestTrackingPermissionsAsync();
+          console.log('ATS izin sonucu:', result);
           await AsyncStorage.setItem(STORAGE_KEYS.trackingPromptShown, 'true');
           return;
         }
 
-        const alreadyPrompted = await AsyncStorage.getItem(STORAGE_KEYS.trackingPromptShown);
-        if (alreadyPrompted === 'true' || !trackingStatus.canAskAgain) {
-          return;
+        if (normalizedStatus === 'denied' && canAskAgain) {
+          console.log('ATS izni reddedilmiş, tekrar soruluyor...');
+          const result = await requestTrackingPermissionsAsync();
+          console.log('ATS izin tekrar sonucu:', result);
+          await AsyncStorage.setItem(STORAGE_KEYS.trackingPromptShown, 'true');
         }
 
-        await requestTrackingPermissionsAsync();
-        await AsyncStorage.setItem(STORAGE_KEYS.trackingPromptShown, 'true');
+        if (normalizedStatus !== 'not-determined' && normalizedStatus !== 'undetermined') {
+          console.log('ATS izni zaten belirlenmiş:', normalizedStatus);
+          await AsyncStorage.setItem(STORAGE_KEYS.trackingPromptShown, 'true');
+        }
       } catch (error) {
         console.warn('Takip izni istenirken hata oluştu:', error);
       }
     };
 
-    requestTrackingPermission();
-  }, []);
+    // Bildirim izninden sonra ATS iznini iste
+    const initializePermissions = async () => {
+      // Önce bildirim iznini bekle
+      console.log('Bildirim izni isteniyor...');
+      await initializeNotifications().catch((error) => {
+        console.warn('Bildirimler başlatılırken hata oluştu:', error);
+      });
+      console.log('Bildirim izni tamamlandı, ATS izni isteniyor...');
+      
+      // Bildirim izni tamamlandıktan hemen sonra ATS iznini iste
+      requestTrackingPermission();
+    };
 
-  useEffect(() => {
-    initializeNotifications().catch((error) => {
-      console.warn('Bildirimler başlatılırken hata oluştu:', error);
-    });
+    initializePermissions();
   }, []);
 
   useEffect(() => {

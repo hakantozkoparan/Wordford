@@ -1,10 +1,12 @@
-import { ActivityIndicator, Platform, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { NavigationContainer, DarkTheme, Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useEffect } from 'react';
+import * as SplashScreen from 'expo-splash-screen';
 
-import { colors } from '@/theme';
+import { colors, spacing, typography } from '@/theme';
 import { useAuth } from '@/context/AuthContext';
 import { AppStackParamList, TabsParamList } from './types';
 import { LoginScreen } from '@/screens/auth/LoginScreen';
@@ -73,13 +75,50 @@ const TabNavigator = () => (
   </Tabs.Navigator>
 );
 
+const styles = StyleSheet.create({
+  bootSplash: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+    gap: spacing.md,
+  },
+  bootLogo: {
+    width: 110,
+    height: 110,
+    borderRadius: 28,
+  },
+  bootIndicator: {
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  bootLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+});
+
 export const AppNavigator = () => {
   const { initializing } = useAuth();
 
+  useEffect(() => {
+    if (!initializing) {
+      SplashScreen.hideAsync();
+    }
+  }, [initializing]);
+
   if (initializing) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
-        <ActivityIndicator color={colors.accent} size="large" />
+      <View style={styles.bootSplash}>
+        <Image
+          source={require('../../assets/Wordford_Icon.png')}
+          style={styles.bootLogo}
+          resizeMode="contain"
+        />
+        <View style={styles.bootIndicator}>
+          <ActivityIndicator color={colors.accent} size="small" />
+          <Text style={styles.bootLabel}>Wordford hazırlanıyor...</Text>
+        </View>
       </View>
     );
   }
@@ -93,7 +132,7 @@ export const AppNavigator = () => {
         <AppStack.Screen name="AdminPanel" component={AdminPanelScreen} />
         <AppStack.Screen name="AdminContactRequests" component={AdminContactRequestsScreen} />
         <AppStack.Screen name="AdminWordManager" component={AdminWordScreen} />
-  <AppStack.Screen name="AdminNotifications" component={AdminNotificationScreen} />
+        <AppStack.Screen name="AdminNotifications" component={AdminNotificationScreen} />
         <AppStack.Screen name="Contact" component={ContactScreen} />
         <AppStack.Screen
           name="Login"

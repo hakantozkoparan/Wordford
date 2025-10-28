@@ -16,11 +16,13 @@ const isGoogleMobileAdsAvailable = () =>
 export const AdBanner: React.FC = () => {
   const { isPremium } = useAuth();
   const [adsModule, setAdsModule] = useState<GoogleMobileAdsModule | null>(null);
+  const [adLoaded, setAdLoaded] = useState(false);
   const adsSupported = isGoogleMobileAdsAvailable();
 
   useEffect(() => {
     if (!adsSupported || isPremium) {
       setAdsModule(null);
+      setAdLoaded(false);
       return;
     }
 
@@ -39,6 +41,7 @@ export const AdBanner: React.FC = () => {
         mobileAdsInstance.initialize().catch(() => undefined);
 
         setAdsModule(module);
+        setAdLoaded(false);
       })
       .catch((error) => {
         console.debug('Google Mobile Ads modülü yüklenemedi:', error);
@@ -55,7 +58,7 @@ export const AdBanner: React.FC = () => {
 
   if (!adsSupported || !adsModule) {
     return (
-      <View style={[styles.container, styles.placeholder]}>
+      <View style={[styles.container, styles.frame, styles.placeholder]}>
         <Text style={styles.placeholderText}>Reklam alanı (yalnızca cihaz buildlerinde görünür)</Text>
       </View>
     );
@@ -76,12 +79,19 @@ export const AdBanner: React.FC = () => {
   const BannerAdComponent = BannerAd as React.ComponentType<any>;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, adLoaded ? null : styles.frame]}>
+      {!adLoaded ? (
+        <View pointerEvents="none" style={styles.placeholderOverlay}>
+          <Text style={styles.placeholderText}>Reklam yükleniyor...</Text>
+        </View>
+      ) : null}
       <BannerAdComponent
         unitId={adUnitId}
         size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
         requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+        onAdLoaded={() => setAdLoaded(true)}
         onAdFailedToLoad={(error: any) => {
+          setAdLoaded(false);
           console.debug('Banner reklamı yüklenemedi:', error);
         }}
       />
@@ -94,12 +104,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.sm,
+  },
+  frame: {
     backgroundColor: colors.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
   placeholder: {
     minHeight: 60,
+  },
+  placeholderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   placeholderText: {
     color: colors.textSecondary,
