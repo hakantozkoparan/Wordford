@@ -62,7 +62,28 @@ export const NotificationInitializer: React.FC = () => {
       }, 2000);
     };
 
-    initializePermissions();
+    // Onboarding tamamlandı mı kontrol et ve izinleri başlat
+    const checkOnboardingAndInitialize = async () => {
+      try {
+        const onboardingCompleted = await AsyncStorage.getItem(STORAGE_KEYS.onboardingCompleted);
+        if (onboardingCompleted === 'true') {
+          // Onboarding tamamlandıysa izinleri iste
+          initializePermissions();
+        }
+      } catch (error) {
+        console.warn('Onboarding durumu kontrol edilemedi:', error);
+      }
+    };
+
+    // İlk kontrol
+    checkOnboardingAndInitialize();
+
+    // Onboarding tamamlanma durumunu periyodik kontrol et
+    const interval = setInterval(() => {
+      checkOnboardingAndInitialize();
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
